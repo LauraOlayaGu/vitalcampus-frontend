@@ -1,0 +1,253 @@
+.container {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  color: #f1f5f9;
+}
+
+.header-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.subtitle {
+  color: #94a3b8;
+  font-size: 0.95rem;
+  margin-top: 4px;
+}
+
+.quick-actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* Banner de Próxima Clase */
+.class-banner {
+  background: linear-gradient(90deg, #1e293b 0%, #0f172a 100%);
+  border-left: 4px solid #38bdf8;
+  padding: 12px 20px;
+  margin-bottom: 20px;
+}
+
+.class-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.class-info span {
+  color: #f8fafc;
+  font-size: 0.95rem;
+}
+
+.class-info small {
+  color: #38bdf8;
+  font-weight: 500;
+}
+
+/* Grilla KPIs */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.kpi-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+}
+
+.kpi-header span {
+  font-size: 0.9rem;
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+.kpi-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #38bdf8;
+  margin: 10px 0 4px 0;
+}
+
+.kpi-card small {
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+.kpi-link {
+  color: #38bdf8;
+  font-size: 0.85rem;
+  text-decoration: none;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+.kpi-link:hover {
+  text-decoration: underline;
+}
+
+/* Tarjeta General */
+.card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+}
+
+.alert-card {
+  background: #0f172a;
+  border-left: 4px solid #f59e0b;
+}
+
+.alert-card h3 {
+  margin-bottom: 8px;
+  color: #fbbf24;
+  font-size: 1.1rem;
+}
+
+.alert-card p {
+  color: #e2e8f0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.grid-two-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 20px;
+}
+
+.card-header-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.chart-subtitle {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin-bottom: 16px;
+}
+
+.link-sm {
+  color: #38bdf8;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+/* CONTENEDOR DEL DIAGRAMA DE PICOS (SVG) */
+.svg-chart-container {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 12px 10px 4px 10px;
+}
+
+.peaks-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* LISTA DE ENTREGAS */
+.deliveries-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.delivery-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #0f172a;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+}
+
+.delivery-urgent {
+  border-left: 4px solid #ef4444;
+}
+
+.delivery-details strong {
+  display: block;
+  color: #f8fafc;
+  font-size: 0.9rem;
+}
+
+.delivery-details small {
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+
+.badge-time {
+  background: #1e293b;
+  color: #38bdf8;
+  font-size: 0.75rem;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.badge-urgent {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid #ef4444;
+}
+
+.empty-text {
+  color: #64748b;
+  font-size: 0.88rem;
+  text-align: center;
+  padding: 24px 0;
+}
+
+/* Botones */
+.btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.2s;
+}
+
+.btn-primary {
+  background: #2563eb;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #1d4ed8;
+}
+
+.btn-secondary {
+  background: #334155;
+  color: #f1f5f9;
+}
+
+.btn-secondary:hover {
+  background: #475569;
+}

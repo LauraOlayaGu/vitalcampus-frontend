@@ -1,0 +1,105 @@
+<div class="auth-container">
+  <div class="auth-card">
+    
+    <!-- HEADER MARCA -->
+    <div class="brand-header">
+      <div class="logo">🌿</div>
+      <h1>VitalCampus</h1>
+      <p class="subtitle">Plataforma de Bienestar Universitario FET</p>
+    </div>
+
+    <!-- PESTAÑAS LOGIN / REGISTRO -->
+    <div class="auth-tabs">
+      <button type="button" [class.active]="isLoginMode" (click)="cambiarModo(true)">
+        Iniciar Sesión
+      </button>
+      <button type="button" [class.active]="!isLoginMode" (click)="cambiarModo(false)">
+        Crear Cuenta
+      </button>
+    </div>
+
+    <!-- MENSAJES DE ALERTA -->
+    <div *ngIf="errorMensaje" class="alert alert-error">
+      ⚠️ {{ errorMensaje }}
+    </div>
+    <div *ngIf="exitoMensaje" class="alert alert-success">
+      ✅ {{ exitoMensaje }}
+    </div>
+
+    <!-- FORMULARIO UNIFICADO -->
+    <form (ngSubmit)="onSubmit()">
+      
+      <!-- NOMBRE COMPLETO (Solo en Registro) -->
+      <div class="form-group" *ngIf="!isLoginMode">
+        <label for="nombre">Nombre Completo</label>
+        <input 
+          type="text" 
+          id="nombre" 
+          name="nombreCompleto"
+          [(ngModel)]="nombreCompleto" 
+          placeholder="Ej: Laura Olaya"
+          required>
+      </div>
+
+      <!-- DESPLEGABLE DE CARRERAS FET (Solo en Registro) -->
+      <div class="form-group" *ngIf="!isLoginMode">
+        <label for="carrera">Programa Académico / Carrera</label>
+        <select 
+          id="carrera" 
+          name="carreraSeleccionada"
+          [(ngModel)]="carreraSeleccionada" 
+          required>
+          <option value="" disabled selected>Selecciona tu carrera...</option>
+          <option *ngFor="let carrera of carrerasFET" [value]="carrera">
+            {{ carrera }}
+          </option>
+        </select>
+      </div>
+
+      <!-- CORREO INSTITUCIONAL FET -->
+      <div class="form-group">
+        <label for="correo">Correo Institucional FET</label>
+        <input 
+          type="email" 
+          id="correo" 
+          name="correo"
+          [(ngModel)]="correo" 
+          placeholder="nombre_apellido@fet.edu.co"
+          required>
+        <small class="hint">Ejemplo: laura_olayagu&#64;fet.edu.co</small>
+      </div>
+
+      <!-- CONTRASEÑA -->
+      <div class="form-group">
+        <label for="password">Contraseña</label>
+        <input 
+          type="password" 
+          id="password" 
+          name="password"
+          [(ngModel)]="password" 
+          placeholder="••••••••"
+          required>
+      </div>
+
+      <!-- CONFIRMAR CONTRASEÑA (Solo en Registro) -->
+      <div class="form-group" *ngIf="!isLoginMode">
+        <label for="confirmPassword">Confirmar Contraseña</label>
+        <input 
+          type="password" 
+          id="confirmPassword" 
+          name="confirmPassword"
+          [(ngModel)]="confirmPassword" 
+          placeholder="••••••••"
+          required>
+      </div>
+
+      <button type="submit" class="btn-primary">
+        {{ isLoginMode ? 'Ingresar' : 'Crear Mi Cuenta' }}
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      <p>Aviso: Acceso reservado únicamente para correos &#64;fet.edu.co</p>
+    </div>
+  </div>
+</div>

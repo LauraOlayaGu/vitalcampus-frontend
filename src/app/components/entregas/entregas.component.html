@@ -1,0 +1,115 @@
+<div class="page-container">
+  <div class="header-section">
+    <h2>📋 Entregas y Evaluaciones Académicas</h2>
+    <p class="subtitle">Planifica exámenes y trabajos. Las entregas vencidas se remueven automáticamente.</p>
+  </div>
+
+  <div *ngIf="exitoMsg" class="alert alert-success">{{ exitoMsg }}</div>
+
+  <div class="grid-layout">
+    <!-- FORMULARIO DE REGISTRO -->
+    <div class="card form-card">
+      <div class="card-header">
+        <h3>+ Crear Nueva Actividad</h3>
+      </div>
+
+      <form [formGroup]="entregaForm" (ngSubmit)="onSubmit()" class="form-grid">
+        
+        <!-- DESPLEGABLE DE ASIGNATURAS CON FONDO OSCURO -->
+        <div class="form-group full-width">
+          <label>Asignatura *</label>
+          <select formControlName="asignatura" class="form-control select-dark">
+            <option value="" disabled>-- Selecciona una asignatura --</option>
+            <option *ngFor="let asig of asignaturasDisponibles" [value]="asig.nombre">
+              📚 {{ asig.nombre }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group full-width">
+          <label>Título / Descripción de la Entrega *</label>
+          <input type="text" formControlName="titulo" class="form-control" placeholder="Ej. Parcial Sprint 2, Taller de Modelado..." />
+        </div>
+
+        <div class="form-group">
+          <label>Tipo de Evaluación *</label>
+          <select formControlName="tipo" class="form-control select-dark">
+            <option *ngFor="let t of tiposActividad" [value]="t.valor">{{ t.etiqueta }}</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Fecha y Hora Límite *</label>
+          <input type="datetime-local" formControlName="fechaLimite" class="form-control" />
+        </div>
+
+        <div class="form-group full-width">
+          <label>Nivel de Estrés Generado (1 al 5) *</label>
+          <select formControlName="estres" class="form-control select-dark">
+            <option *ngFor="let n of nivelesEstres" [value]="n.valor">{{ n.etiqueta }}</option>
+          </select>
+        </div>
+
+        <div class="form-actions full-width">
+          <button type="submit" [disabled]="entregaForm.invalid || guardando" class="btn btn-primary">
+            {{ guardando ? 'Guardando...' : 'Registrar Actividad' }}
+          </button>
+        </div>
+
+      </form>
+    </div>
+
+    <!-- LISTAS SEPARADAS DE ACTIVIDADES -->
+    <div class="card content-card">
+      
+      <!-- APARTADO 1: EVALUACIONES Y EXÁMENES -->
+      <div class="section-box">
+        <div class="section-title">
+          <h3>📝 Evaluaciones / Exámenes por Presentar ({{ obtenerEvaluacionesExamenes().length }})</h3>
+        </div>
+        
+        <div *ngIf="obtenerEvaluacionesExamenes().length > 0; else noExamenes" class="activity-list">
+          <div *ngFor="let ex of obtenerEvaluacionesExamenes()" class="activity-item examen-border">
+            <div class="activity-info">
+              <strong>{{ ex.titulo }}</strong>
+              <small>📚 {{ ex.asignatura }} &nbsp;•&nbsp; ⏰ Límite: {{ ex.fechaLimite | date:'dd/MM/yyyy, hh:mm a' }}</small>
+            </div>
+            <div class="activity-side">
+              <span class="badge-estres">⚡ Estrés: {{ ex.estres }}/5</span>
+              <button (click)="eliminar(ex.id)" class="btn-delete" title="Completar / Eliminar">🗑️</button>
+            </div>
+          </div>
+        </div>
+
+        <ng-template #noExamenes>
+          <p class="empty-text">No tienes exámenes pendientes programados.</p>
+        </ng-template>
+      </div>
+
+      <!-- APARTADO 2: TRABAJOS Y PROYECTOS -->
+      <div class="section-box">
+        <div class="section-title">
+          <h3>📁 Trabajos y Talleres por Entregar ({{ obtenerTrabajosProyectos().length }})</h3>
+        </div>
+
+        <div *ngIf="obtenerTrabajosProyectos().length > 0; else noTrabajos" class="activity-list">
+          <div *ngFor="let tr of obtenerTrabajosProyectos()" class="activity-item trabajo-border">
+            <div class="activity-info">
+              <strong>{{ tr.titulo }}</strong>
+              <small>📚 {{ tr.asignatura }} &nbsp;•&nbsp; ⏰ Límite: {{ tr.fechaLimite | date:'dd/MM/yyyy, hh:mm a' }}</small>
+            </div>
+            <div class="activity-side">
+              <span class="badge-estres">⚡ Estrés: {{ tr.estres }}/5</span>
+              <button (click)="eliminar(tr.id)" class="btn-delete" title="Completar / Eliminar">🗑️</button>
+            </div>
+          </div>
+        </div>
+
+        <ng-template #noTrabajos>
+          <p class="empty-text">No tienes trabajos pendientes por entregar.</p>
+        </ng-template>
+      </div>
+
+    </div>
+  </div>
+</div>

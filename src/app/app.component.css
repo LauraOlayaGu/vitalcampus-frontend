@@ -1,0 +1,268 @@
+/* Layout Principal */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: #0b1120;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Sidebar Lateral - Opciones Alineadas Arriba */
+.sidebar {
+  width: 240px;
+  background-color: #0f172a;
+  border-right: 1px solid #1e293b;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start; /* Alinea los elementos al inicio (arriba) */
+  padding: 24px 16px;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 100;
+  box-sizing: border-box;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  color: #fff;
+}
+
+.brand .logo {
+  font-size: 1.8rem;
+}
+
+.brand h1 {
+  font-size: 1.15rem;
+  margin: 0;
+  font-weight: 700;
+}
+
+.brand small {
+  color: #38bdf8;
+  font-size: 0.72rem;
+}
+
+.nav-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px; /* Espaciado compacto superior */
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  color: #94a3b8;
+  text-decoration: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.nav-item:hover {
+  background-color: #1e293b;
+  color: #f1f5f9;
+}
+
+.nav-item.active {
+  background-color: #1e3a8a;
+  color: #38bdf8;
+  border: 1px solid #2563eb;
+}
+
+/* Insignia de Alertas Roja */
+.badge-count-red {
+  background-color: #ef4444;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  margin-left: auto;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+}
+
+/* Perfil de Usuario al Final */
+.user-profile {
+  margin-top: auto; /* Empuja el perfil suavemente hacia el fondo */
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid #1e293b;
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #3b82f6;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.8rem;
+}
+
+.user-info strong {
+  display: block;
+  color: #f8fafc;
+  font-size: 0.8rem;
+}
+
+.user-info small {
+  color: #64748b;
+  font-size: 0.72rem;
+}
+
+/* Contenido Principal */
+.main-content {
+  margin-left: 240px;
+  flex: 1;
+  position: relative;
+  min-height: 100vh;
+}
+
+/* Banner Flotante Emergente Toast */
+.toast-notification {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 9999;
+  background: #1e293b;
+  border: 1px solid #ef4444;
+  border-left: 6px solid #ef4444;
+  color: #f1f5f9;
+  padding: 16px 20px;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  max-width: 380px;
+}
+
+.toast-critica {
+  background: #2b1113;
+}
+
+.toast-content strong {
+  display: block;
+  font-size: 0.92rem;
+  color: #f87171;
+  margin-bottom: 4px;
+}
+
+.toast-content p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #e2e8f0;
+  line-height: 1.4;
+}
+
+.toast-close {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.toast-close:hover {
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   DISEÑO RESPONSIVO MÓVIL Y TABLET (BOTTOM NAV BAR & LAYOUT ADAPTABLE)
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .app-layout {
+    flex-direction: column;
+  }
+
+  /* Transforma la Sidebar en una Barra de Navegación Inferior Móvil (Bottom Bar) */
+  .sidebar {
+    width: 100% !important;
+    height: 64px !important;
+    position: fixed !important;
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-around !important;
+    padding: 0 8px !important;
+    background-color: #0f172a !important;
+    border-right: none !important;
+    border-top: 1px solid #1e293b !important;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.4);
+    z-index: 999;
+  }
+
+  /* Oculta la marca superior y el perfil de usuario en el menú inferior */
+  .brand, .user-profile {
+    display: none !important;
+  }
+
+  /* Organiza los ítems del menú de forma horizontal para la pantalla táctil */
+  .nav-menu {
+    flex-direction: row !important;
+    justify-content: space-around !important;
+    width: 100% !important;
+    gap: 0 !important;
+  }
+
+  .nav-item {
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    padding: 6px 4px !important;
+    font-size: 0.68rem !important;
+    gap: 3px !important;
+    border-radius: 6px !important;
+    border: none !important;
+    flex: 1;
+    text-align: center;
+  }
+
+  .nav-item .icon {
+    font-size: 1.1rem;
+  }
+
+  /* Insignia de alertas sobrepuesta en ícono para ahorrar espacio */
+  .badge-count-red {
+    position: absolute;
+    top: 2px;
+    right: 12px;
+    margin-left: 0;
+    font-size: 0.65rem;
+    padding: 1px 5px;
+  }
+
+  /* Ajuste del contenido principal liberando el espacio inferior */
+  .main-content {
+    margin-left: 0 !important;
+    padding-bottom: 80px !important; /* Espacio reservado para que la barra no tape el contenido */
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  /* Notificación Toast centrada superior en pantallas pequeñas */
+  .toast-notification {
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    max-width: none;
+  }
+}
