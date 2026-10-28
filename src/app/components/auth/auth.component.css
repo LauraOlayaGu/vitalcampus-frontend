@@ -3,152 +3,148 @@
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background-color: #0d1117;
-  color: #f3f4f6;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  padding: 1.5rem;
+  width: 100vw;
+  background-color: #0b1329;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
-.auth-card {
-  background-color: #161b22;
-  border: 1px solid #30363d;
-  border-radius: 12px;
+.auth-box {
   width: 100%;
-  max-width: 420px;
-  padding: 2.2rem;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  max-width: 440px;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
 }
 
-.brand-header {
+.auth-header {
   text-align: center;
-  margin-bottom: 1.8rem;
+  margin-bottom: 24px;
 }
 
-.brand-header .logo {
-  font-size: 2.5rem;
-  margin-bottom: 0.3rem;
-}
-
-.brand-header h1 {
-  font-size: 1.75rem;
-  font-weight: 700;
-  margin: 0;
-  color: #ffffff;
-}
-
-.brand-header .subtitle {
-  font-size: 0.85rem;
-  color: #8b949e;
-  margin-top: 0.25rem;
-}
-
-.auth-tabs {
+.brand {
   display: flex;
-  background-color: #0d1117;
-  border-radius: 8px;
-  padding: 4px;
-  margin-bottom: 1.5rem;
-  border: 1px solid #30363d;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
 }
 
-.auth-tabs button {
-  flex: 1;
-  padding: 0.65rem;
+.logo {
+  font-size: 2rem;
+}
+
+.auth-header h2 {
+  color: #f8fafc;
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.subtitle {
+  color: #94a3b8;
+  font-size: 0.82rem;
+  margin-top: 6px;
+}
+
+/* PESTAÑAS TOGGLE */
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  background: #1e293b;
+  padding: 4px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.tab-btn {
+  background: none;
   border: none;
-  background: transparent;
-  color: #8b949e;
-  font-weight: 600;
-  font-size: 0.875rem;
-  border-radius: 6px;
+  color: #94a3b8;
+  padding: 10px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.auth-tabs button.active {
-  background-color: #2563eb;
+.tab-btn.active {
+  background: #2563eb;
   color: #ffffff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
 .form-group {
-  margin-bottom: 1.2rem;
   display: flex;
   flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
 }
 
 .form-group label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #c9d1d9;
-  margin-bottom: 0.4rem;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
-.form-group input {
-  background-color: #0d1117;
-  border: 1px solid #30363d;
+.form-control {
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #f8fafc;
+  padding: 12px;
   border-radius: 8px;
-  padding: 0.75rem 1rem;
-  color: #ffffff;
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s ease;
 }
 
-.form-group input:focus {
-  border-color: #2563eb;
+.form-control:focus {
+  border-color: #38bdf8;
 }
 
-.hint {
-  font-size: 0.75rem;
-  color: #6e7681;
-  margin-top: 0.35rem;
+.btn {
+  padding: 14px;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 0.95rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .btn-primary {
-  width: 100%;
-  padding: 0.8rem;
-  background-color: #2563eb;
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 1rem;
-  cursor: pointer;
-  margin-top: 0.5rem;
-  transition: background-color 0.2s ease;
+  background: #2563eb;
+  color: white;
 }
 
 .btn-primary:hover {
-  background-color: #1d4ed8;
+  background: #1d4ed8;
+}
+
+.btn-block {
+  width: 100%;
+  margin-top: 10px;
 }
 
 .alert {
-  padding: 0.75rem 1rem;
+  padding: 12px;
   border-radius: 8px;
-  font-size: 0.85rem;
-  margin-bottom: 1.25rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 16px;
 }
 
 .alert-error {
-  background-color: rgba(239, 68, 68, 0.15);
-  border: 1px solid #ef4444;
-  color: #f87171;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
 }
 
 .alert-success {
-  background-color: rgba(16, 185, 129, 0.15);
-  border: 1px solid #10b981;
-  color: #34d399;
-}
-
-.auth-footer {
-  text-align: center;
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid #21262d;
-}
-
-.auth-footer p {
-  font-size: 0.75rem;
-  color: #6e7681;
-  margin: 0;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #6ee7b7;
 }

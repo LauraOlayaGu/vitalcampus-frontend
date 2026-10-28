@@ -1,115 +1,127 @@
-<div class="page-container">
-  <div class="header-section">
-    <h2>📋 Entregas y Evaluaciones Académicas</h2>
-    <p class="subtitle">Planifica exámenes y trabajos. Las entregas vencidas se remueven automáticamente.</p>
-  </div>
+<div class="container">
+  
+  <!-- FORMULARIO DE REGISTRO DE ACTIVIDAD -->
+  <div class="card form-card">
+    <h3>✨ Registrar Nueva Actividad</h3>
+    
+    <div class="form-group">
+      <label>Tipo de Actividad</label>
+      <div class="type-selector">
+        <button 
+          type="button" 
+          [class.active]="tipoActividad === 'TRABAJO'" 
+          (click)="seleccionarTipo('TRABAJO')" 
+          class="btn-type">
+          📝 Trabajo / Taller
+        </button>
+        <button 
+          type="button" 
+          [class.active]="tipoActividad === 'PARCIAL'" 
+          (click)="seleccionarTipo('PARCIAL')" 
+          class="btn-type">
+          🎯 Parcial / Examen
+        </button>
+      </div>
+    </div>
 
-  <div *ngIf="exitoMsg" class="alert alert-success">{{ exitoMsg }}</div>
-
-  <div class="grid-layout">
-    <!-- FORMULARIO DE REGISTRO -->
-    <div class="card form-card">
-      <div class="card-header">
-        <h3>+ Crear Nueva Actividad</h3>
+    <div class="grid-form">
+      <div class="form-group span-2">
+        <label>Título de la Actividad</label>
+        <input 
+          type="text" 
+          [(ngModel)]="titulo" 
+          placeholder="Ej. Parcial de Base de Datos, Taller 1..." 
+          class="form-control" />
       </div>
 
-      <form [formGroup]="entregaForm" (ngSubmit)="onSubmit()" class="form-grid">
+      <div class="form-group">
+        <label>Asignatura</label>
+        <select [(ngModel)]="asignaturaSeleccionada" class="form-control">
+          <option *ngFor="let a of asignaturasList" [value]="a.nombre">{{ a.nombre }}</option>
+          <option *ngIf="asignaturasList.length === 0" value="General">General</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Fecha Límite</label>
+        <input type="date" [(ngModel)]="fechaLimite" class="form-control" />
+      </div>
+
+      <div class="form-group">
+        <label>Hora Límite</label>
+        <input type="time" [(ngModel)]="horaLimite" class="form-control" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Nivel de Estrés Percibido</label>
+      <div class="stress-selector">
+        <button 
+          *ngFor="let level of [1, 2, 3, 4, 5]" 
+          type="button" 
+          [class.selected]="estresPercibido === level" 
+          (click)="seleccionarEstres(level)" 
+          class="btn-stress">
+          ⚡ {{ level }}/5 {{ level >= 4 ? '🔥' : '' }}
+        </button>
+      </div>
+    </div>
+
+    <button (click)="guardarActividad()" class="btn btn-primary btn-block">
+      ➕ Guardar Actividad
+    </button>
+  </div>
+
+  <!-- LISTADO DE ENTREGAS PENDIENTES (SE BORRAN AUTOMÁTICAMENTE AL COMPLETARSE) -->
+  <div class="card list-card">
+    <div class="list-header">
+      <h3>📌 Entregas y Actividades Programadas</h3>
+      <span class="badge-count">{{ entregasPendientesList.length }} Pendientes</span>
+    </div>
+
+    <div class="grid-deliveries" *ngIf="entregasPendientesList.length > 0; else emptyList">
+      <div 
+        *ngFor="let e of entregasPendientesList" 
+        class="delivery-card" 
+        [class.card-urgent]="e.esUrgente">
         
-        <!-- DESPLEGABLE DE ASIGNATURAS CON FONDO OSCURO -->
-        <div class="form-group full-width">
-          <label>Asignatura *</label>
-          <select formControlName="asignatura" class="form-control select-dark">
-            <option value="" disabled>-- Selecciona una asignatura --</option>
-            <option *ngFor="let asig of asignaturasDisponibles" [value]="asig.nombre">
-              📚 {{ asig.nombre }}
-            </option>
-          </select>
+        <div class="delivery-top">
+          <span class="badge-tag" [class.tag-parcial]="e.tipo === 'PARCIAL'">
+            {{ e.tipo === 'PARCIAL' ? '🎯 PARCIAL' : '📝 TRABAJO' }}
+          </span>
+          <span class="badge-pending">⏳ PENDIENTE</span>
+          <span class="badge-stress">⚡ Estrés Base: {{ e.estresPercibido }}/5</span>
         </div>
 
-        <div class="form-group full-width">
-          <label>Título / Descripción de la Entrega *</label>
-          <input type="text" formControlName="titulo" class="form-control" placeholder="Ej. Parcial Sprint 2, Taller de Modelado..." />
+        <h4 class="delivery-title">{{ e.titulo }}</h4>
+        <p class="delivery-subject">📚 {{ e.asignatura }}</p>
+
+        <!-- BANNER DE ALERTA DE TIEMPO -->
+        <div *ngIf="e.mensajeAlerta" class="time-alert-box">
+          {{ e.mensajeAlerta }}
         </div>
 
-        <div class="form-group">
-          <label>Tipo de Evaluación *</label>
-          <select formControlName="tipo" class="form-control select-dark">
-            <option *ngFor="let t of tiposActividad" [value]="t.valor">{{ t.etiqueta }}</option>
-          </select>
+        <div class="delivery-date">
+          🗓️ Vence: {{ e.fechaLimite | date:'mediumDate' }} • {{ e.horaLimite || '23:59' }}
         </div>
 
-        <div class="form-group">
-          <label>Fecha y Hora Límite *</label>
-          <input type="datetime-local" formControlName="fechaLimite" class="form-control" />
-        </div>
-
-        <div class="form-group full-width">
-          <label>Nivel de Estrés Generado (1 al 5) *</label>
-          <select formControlName="estres" class="form-control select-dark">
-            <option *ngFor="let n of nivelesEstres" [value]="n.valor">{{ n.etiqueta }}</option>
-          </select>
-        </div>
-
-        <div class="form-actions full-width">
-          <button type="submit" [disabled]="entregaForm.invalid || guardando" class="btn btn-primary">
-            {{ guardando ? 'Guardando...' : 'Registrar Actividad' }}
+        <div class="delivery-actions">
+          <button (click)="marcarComoHecha(e.id)" class="btn-check-done">
+            ✔ Marcar Hecha
+          </button>
+          <button (click)="eliminarActividad(e.id)" class="btn-delete" title="Eliminar Actividad">
+            🗑️
           </button>
         </div>
 
-      </form>
+      </div>
     </div>
 
-    <!-- LISTAS SEPARADAS DE ACTIVIDADES -->
-    <div class="card content-card">
-      
-      <!-- APARTADO 1: EVALUACIONES Y EXÁMENES -->
-      <div class="section-box">
-        <div class="section-title">
-          <h3>📝 Evaluaciones / Exámenes por Presentar ({{ obtenerEvaluacionesExamenes().length }})</h3>
-        </div>
-        
-        <div *ngIf="obtenerEvaluacionesExamenes().length > 0; else noExamenes" class="activity-list">
-          <div *ngFor="let ex of obtenerEvaluacionesExamenes()" class="activity-item examen-border">
-            <div class="activity-info">
-              <strong>{{ ex.titulo }}</strong>
-              <small>📚 {{ ex.asignatura }} &nbsp;•&nbsp; ⏰ Límite: {{ ex.fechaLimite | date:'dd/MM/yyyy, hh:mm a' }}</small>
-            </div>
-            <div class="activity-side">
-              <span class="badge-estres">⚡ Estrés: {{ ex.estres }}/5</span>
-              <button (click)="eliminar(ex.id)" class="btn-delete" title="Completar / Eliminar">🗑️</button>
-            </div>
-          </div>
-        </div>
-
-        <ng-template #noExamenes>
-          <p class="empty-text">No tienes exámenes pendientes programados.</p>
-        </ng-template>
+    <ng-template #emptyList>
+      <div class="empty-box">
+        <p>🎉 ¡Excelente! No tienes entregas ni exámenes pendientes por realizar.</p>
       </div>
-
-      <!-- APARTADO 2: TRABAJOS Y PROYECTOS -->
-      <div class="section-box">
-        <div class="section-title">
-          <h3>📁 Trabajos y Talleres por Entregar ({{ obtenerTrabajosProyectos().length }})</h3>
-        </div>
-
-        <div *ngIf="obtenerTrabajosProyectos().length > 0; else noTrabajos" class="activity-list">
-          <div *ngFor="let tr of obtenerTrabajosProyectos()" class="activity-item trabajo-border">
-            <div class="activity-info">
-              <strong>{{ tr.titulo }}</strong>
-              <small>📚 {{ tr.asignatura }} &nbsp;•&nbsp; ⏰ Límite: {{ tr.fechaLimite | date:'dd/MM/yyyy, hh:mm a' }}</small>
-            </div>
-            <div class="activity-side">
-              <span class="badge-estres">⚡ Estrés: {{ tr.estres }}/5</span>
-              <button (click)="eliminar(tr.id)" class="btn-delete" title="Completar / Eliminar">🗑️</button>
-            </div>
-          </div>
-        </div>
-
-        <ng-template #noTrabajos>
-          <p class="empty-text">No tienes trabajos pendientes por entregar.</p>
-        </ng-template>
-      </div>
-
-    </div>
+    </ng-template>
   </div>
+
 </div>

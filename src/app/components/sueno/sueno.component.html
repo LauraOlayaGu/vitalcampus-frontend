@@ -1,122 +1,156 @@
 <div class="sueno-container">
   <div class="header-section">
     <h2>🌙 Registro y Control de Sueño</h2>
-    <p class="subtitle">Mide tus horas de descanso semanales y califica tu nivel de percepción de descanso.</p>
+    <p>Mide tus horas de descanso semanales y califica tu nivel de percepción de descanso.</p>
   </div>
 
-  <div *ngIf="exitoMsg" class="alert alert-success">{{ exitoMsg }}</div>
-
-  <div class="grid-layout">
+  <div class="sueno-grid">
     <!-- FORMULARIO DE REGISTRO -->
     <div class="card form-card">
-      <div class="card-header">
-        <h3>+ Nuevo Registro de Sueño</h3>
-      </div>
-      <form [formGroup]="suenoForm" (ngSubmit)="onSubmit()" class="form-grid">
-        
-        <div class="form-group full-width">
-          <label>Fecha del Registro</label>
-          <input type="date" formControlName="fecha" class="form-control" />
-        </div>
+      <h3>+ Nuevo Registro de Sueño</h3>
 
+      <div *ngIf="errorMsg" class="alert-error-box">
+        {{ errorMsg }}
+      </div>
+
+      <div class="form-group">
+        <label>Fecha del Registro</label>
+        <input 
+          type="date" 
+          [(ngModel)]="fechaRegistro" 
+          [max]="fechaMaxima" 
+          class="input-control" />
+      </div>
+
+      <div class="time-row">
         <div class="form-group">
           <label>Hora de Dormir</label>
-          <input type="time" formControlName="horaDormir" class="form-control" />
+          <input 
+            type="time" 
+            [(ngModel)]="horaDormir" 
+            (change)="calcularHoras()" 
+            class="input-control" />
         </div>
 
         <div class="form-group">
           <label>Hora de Despertar</label>
-          <input type="time" formControlName="horaDespertar" class="form-control" />
+          <input 
+            type="time" 
+            [(ngModel)]="horaDespertar" 
+            (change)="calcularHoras()" 
+            class="input-control" />
         </div>
+      </div>
 
-        <div class="form-group full-width info-banner">
-          <div class="info-content">
-            <span>⏱️ <strong>Horas Calculadas:</strong> {{ calcularHoras() }} hrs</span>
-            <span [class.badge-deficit]="calcularHoras() < 6" [class.badge-bueno]="calcularHoras() >= 6" class="status-pill">
-              {{ calcularHoras() < 6 ? '⚠️ Déficit de descanso' : '✅ Buen descanso' }}
-            </span>
+      <div class="calculated-box">
+        <span>⏱️ <strong>Horas Calculadas:</strong> {{ horasCalculadas }} hrs</span>
+        <span class="status-badge" [class.badge-danger]="horasCalculadas < 6" [class.badge-success]="horasCalculadas >= 6">
+          {{ horasCalculadas < 6 ? '⚠️ Déficit de descanso' : '✅ Buen descanso' }}
+        </span>
+      </div>
+
+      <div class="form-group">
+        <label>Calidad del Sueño Percibida</label>
+        <div class="emoji-selector">
+          <button 
+            type="button" 
+            [class.active]="calidadSeleccionada === 'Muy Malo'" 
+            (click)="seleccionarCalidad('Muy Malo')">
+            🤬<small>Muy Malo</small>
+          </button>
+
+          <button 
+            type="button" 
+            [class.active]="calidadSeleccionada === 'Malo'" 
+            (click)="seleccionarCalidad('Malo')">
+            🙁<small>Malo</small>
+          </button>
+
+          <button 
+            type="button" 
+            [class.active]="calidadSeleccionada === 'Regular'" 
+            (click)="seleccionarCalidad('Regular')">
+            😐<small>Regular</small>
+          </button>
+
+          <button 
+            type="button" 
+            [class.active]="calidadSeleccionada === 'Bueno'" 
+            (click)="seleccionarCalidad('Bueno')">
+            😊<small>Bueno</small>
+          </button>
+
+          <button 
+            type="button" 
+            [class.active]="calidadSeleccionada === 'Excelente'" 
+            (click)="seleccionarCalidad('Excelente')">
+            🤩<small>Excelente</small>
+          </button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Observaciones / Notas (Opcional)</label>
+        <textarea 
+          [(ngModel)]="observaciones" 
+          rows="3" 
+          placeholder="Ej: Siesta reparadora en la tarde..." 
+          class="input-control"></textarea>
+      </div>
+
+      <button (click)="registrarSueno()" class="btn-primary-action">
+        Registrar Sueño
+      </button>
+    </div>
+
+    <!-- VISTA DIAGRAMA E HISTORIAL -->
+    <div class="right-column">
+      <div class="card chart-card">
+        <h3>📊 Diagrama Semanal (Lunes a Domingo)</h3>
+        <p class="chart-sub">Las barras verdes indican un buen descanso (≥ 6h) y las rojas un déficit (< 6h).</p>
+        
+        <div class="bars-container">
+          <div *ngFor="let dia of ['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB', 'DOM']" class="bar-col">
+            <span class="bar-val">{{ mapaDiaSemana[dia] > 0 ? mapaDiaSemana[dia] + 'h' : '-' }}</span>
+            <div class="bar-wrapper">
+              <div 
+                class="bar-fill" 
+                [style.height.%]="calcularAlturaBarra(mapaDiaSemana[dia])"
+                [class.bar-good]="mapaDiaSemana[dia] >= 6"
+                [class.bar-bad]="mapaDiaSemana[dia] > 0 && mapaDiaSemana[dia] < 6">
+              </div>
+            </div>
+            <span class="bar-day">{{ dia }}</span>
           </div>
         </div>
+      </div>
 
-        <!-- EMOJIS DE CALIDAD DE SUEÑO -->
-        <div class="form-group full-width">
-          <label>Calidad del Sueño Percibida</label>
-          <div class="calidad-grid">
-            <button type="button" *ngFor="let item of calidades"
-                    [class.active]="suenoForm.value.calidad === item.valor"
-                    (click)="suenoForm.patchValue({ calidad: item.valor })"
-                    class="btn-calidad">
-              <span class="icon">{{ item.icono }}</span>
-              <span class="text">{{ item.etiqueta }}</span>
+      <div class="card history-card">
+        <h3>📜 Historial de Registros</h3>
+        
+        <div class="history-list" *ngIf="historialSueno.length > 0; else emptyHistory">
+          <div *ngFor="let s of historialSueno" class="history-item">
+            <div class="item-main">
+              <div class="item-header-row">
+                <strong>📅 {{ s.fecha }}</strong>
+                <span class="hrs-tag" [class.bg-green]="(s.horasCalculadas || s.duracion) >= 6">
+                  {{ s.horasCalculadas || s.duracion }} hrs
+                </span>
+                <span class="quality-tag">😊 {{ s.calidad || 'Bueno' }}</span>
+              </div>
+              <small class="time-range">🌙 {{ s.horaDormir || '23:00' }} ➔ ☀️ {{ s.horaDespertar || '07:00' }}</small>
+              <p *ngIf="s.observaciones" class="obs-text">"{{ s.observaciones }}"</p>
+            </div>
+            <button (click)="eliminarRegistro(s.id)" class="btn-delete-item" title="Eliminar registro">
+              🗑️
             </button>
           </div>
         </div>
 
-        <div class="form-group full-width">
-          <label>Observaciones / Notas (Opcional)</label>
-          <textarea formControlName="notas" rows="3" class="form-control textarea" placeholder="Ej. Insomnio por examen, tomé té de manzanilla..."></textarea>
-        </div>
-
-        <div class="form-actions full-width">
-          <button type="submit" [disabled]="suenoForm.invalid || guardando" class="btn btn-primary">
-            {{ guardando ? 'Guardando...' : 'Registrar Sueño' }}
-          </button>
-        </div>
-
-      </form>
-    </div>
-
-    <!-- DIAGRAMA Y HISTORIAL -->
-    <div class="card history-card">
-      <div class="card-header">
-        <h3>📊 Diagrama Semanal (Lunes a Domingo)</h3>
-        <p class="subtitle-sm">Las barras verdes indican un buen descanso (≥ 6h) y las rojas un déficit (&lt; 6h).</p>
-      </div>
-
-      <div class="weekly-chart">
-        <div *ngFor="let b of obtenerBarrasSemana()" class="chart-col">
-          <div class="bar-value">{{ b.horas > 0 ? b.horas + 'h' : '-' }}</div>
-          <div class="bar-track">
-            <div class="bar-fill"
-                 [style.height.%]="b.porcentaje"
-                 [class.fill-bueno]="b.esBuenDescanso"
-                 [class.fill-deficit]="b.esDeficit"
-                 [class.fill-empty]="b.horas === 0">
-            </div>
-          </div>
-          <div class="bar-day">{{ b.etiqueta }}</div>
-        </div>
-      </div>
-
-      <!-- HISTORIAL CON EMOJIS Y DATOS -->
-      <div class="history-section">
-        <h4>📋 Historial de Registros</h4>
-        <div class="history-scroll" *ngIf="historial.length > 0; else emptyState">
-          <div *ngFor="let h of historial" class="history-card-item">
-            <div class="history-info">
-              <div class="history-date">
-                <span>📅 {{ h.fecha }}</span>
-                <span class="badge-tag" [class.tag-deficit]="(h.horasCalculadas || 0) < 6">
-                  {{ (h.horasCalculadas || 0) }} hrs
-                </span>
-                <span class="quality-badge">{{ obtenerEmojiCalidad(h.calidad) }}</span>
-              </div>
-              <div class="history-time">
-                🌙 {{ h.horaDormir }} &nbsp;→&nbsp; ☀️ {{ h.horaDespertar }}
-              </div>
-              <p *ngIf="h.notas" class="history-notes">"{{ h.notas }}"</p>
-            </div>
-            <button (click)="eliminar(h.id)" class="btn-delete" title="Eliminar registro">🗑️</button>
-          </div>
-        </div>
-
-        <ng-template #emptyState>
-          <div class="empty-box">
-            <p>No hay registros de sueño almacenados todavía.</p>
-          </div>
+        <ng-template #emptyHistory>
+          <p class="empty-text">Sin registros de sueño guardados.</p>
         </ng-template>
       </div>
-
     </div>
   </div>
 </div>

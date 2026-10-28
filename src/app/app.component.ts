@@ -1,7 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { VitalCampusService } from './services/vitalcampus.service';
+import { map } from 'rxjs/operators';
+import { Observable } from 'rxjs';
 
 @Component({
   selector: 'app-root',
@@ -11,67 +13,43 @@ import { VitalCampusService } from './services/vitalcampus.service';
   imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive]
 })
 export class AppComponent implements OnInit {
-  toastAlerta: any = null;
-  alertasCriticasConteo: number = 0;
+  title = 'VitalCampus';
+
+  // PROPIEDAD DECLARADA CORRECTAMENTE
+  usuarioActual$!: Observable<any | null>;
+  alertasNoLeidasCount$!: Observable<number>;
+  entregasPendientesCount$!: Observable<number>;
 
   constructor(
     public vitalCampusService: VitalCampusService,
-    public router: Router
+    private router: Router
   ) {}
 
   ngOnInit(): void {
-    this.solicitarPermisoNotificaciones();
-    this.monitorearAlertasGlobales();
-  }
+    this.usuarioActual$ = this.vitalCampusService.usuarioActualSubject$;
 
-  // Verifica si la ruta actual es el Login/Registro para ocultar la barra lateral
-  esPaginaAuth(): boolean {
-    return this.router.url.includes('/login');
-  }
+    this.alertasNoLeidasCount$ = this.vitalCampusService.alertasSubject$.pipe(
+      map(alertas => (alertas || []).filter(a => !a.leida).length)
+    );
 
-  solicitarPermisoNotificaciones(): void {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-  }
-
-  monitorearAlertasGlobales(): void {
-    // Escuchar cambios en las alertas y actualizar el conteo
-    this.vitalCampusService.alertasSubject$.subscribe((alertas: any) => {
-      this.vitalCampusService.recalcularAlertas();
-
-      if (Array.isArray(alertas)) {
-        this.alertasCriticasConteo = alertas.filter(
-          (alerta: any) => alerta.tipo === 'CRITICA' || alerta.esCritica
-        ).length;
-      } else {
-        this.alertasCriticasConteo = 0;
-      }
-    });
-
-    // Escuchar eventos inmediatos de Toast (Distracciones)
-    this.vitalCampusService.eventoToast$.subscribe(alertaToast => {
-      if (alertaToast) {
-        this.toastAlerta = alertaToast;
-        setTimeout(() => {
-          this.toastAlerta = null;
-        }, 5000);
-
-        if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification(alertaToast.titulo, {
-            body: alertaToast.mensaje
-          });
-        }
-      }
-    });
-  }
-
-  cerrarToast(): void {
-    this.toastAlerta = null;
+    this.entregasPendientesCount$ = this.vitalCampusService.entregas$.pipe(
+      map(entregas => (entregas || []).filter(e => e.estado !== 'COMPLETADA').length)
+    );
   }
 
   cerrarSesion(): void {
-    this.vitalCampusService.cerrarSesion();
-    this.router.navigate(['/login']);
+    if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+      this.vitalCampusService.cerrarSesionApp();
+      this.router.navigate(['/login']);
+    }
+  }
+
+  obtenerIniciales(nombre: string): string {
+    if (!nombre) return 'LA';
+    const partes = nombre.trim().split(' ');
+    if (partes.length >= 2) {
+      return (partes[0][0] + partes[1][0]).toUpperCase();
+    }
+    return nombre.substring(0, 2).toUpperCase();
   }
 }

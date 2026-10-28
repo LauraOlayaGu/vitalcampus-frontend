@@ -1,78 +1,77 @@
-<!-- PÁGINA DE LOGIN / REGISTRO (SIN SIDEBAR NI HEADER) -->
-<div *ngIf="esPaginaAuth()">
-  <router-outlet></router-outlet>
-</div>
-
-<!-- VISTA PRINCIPAL DEL SISTEMA (CON SIDEBAR Y TOASTS) -->
-<div *ngIf="!esPaginaAuth()" class="app-layout">
-  <!-- SIDEBAR LATERAL NAVEGACIÓN -->
-  <aside class="sidebar">
-    <div class="brand">
-      <div class="logo">🌿</div>
-      <div>
-        <h1>VitalCampus</h1>
-        <small>V 1.0 • Bienestar</small>
+<div class="app-layout">
+  
+  <!-- BARRA LATERAL (VISIBLE CUANDO HAY USUARIO LOGUEADO) -->
+  <aside class="sidebar" *ngIf="usuarioActual$ | async as user">
+    <div class="sidebar-top">
+      <div class="brand">
+        <span class="logo">🌱</span>
+        <div class="brand-text">
+          <span class="title">VitalCampus</span>
+          <small class="version">V 1.0 • Bienestar</small>
+        </div>
       </div>
+
+      <nav class="sidebar-nav">
+        <a routerLink="/resumen" routerLinkActive="active" class="nav-item">
+          <span class="nav-label">📊 Resumen</span>
+          <span *ngIf="(alertasNoLeidasCount$ | async) as count" class="nav-badge">
+            {{ count }}
+          </span>
+        </a>
+
+        <a routerLink="/sueno" routerLinkActive="active" class="nav-item">
+          <span class="nav-label">🌙 Sueño</span>
+        </a>
+
+        <a routerLink="/asignaturas" routerLinkActive="active" class="nav-item">
+          <span class="nav-label">📚 Asignaturas</span>
+        </a>
+
+        <a routerLink="/entregas" routerLinkActive="active" class="nav-item">
+          <span class="nav-label">📝 Entregas</span>
+          <span *ngIf="(entregasPendientesCount$ | async) as count" class="nav-badge badge-blue">
+            {{ count }}
+          </span>
+        </a>
+
+        <a routerLink="/estudio" routerLinkActive="active" class="nav-item">
+          <span class="nav-label">⏱️ Horas de Estudio</span>
+        </a>
+      </nav>
     </div>
 
-    <nav class="nav-menu">
-      <a routerLink="/resumen" routerLinkActive="active" class="nav-item">
-        <span class="icon">📊</span> Resumen
-      </a>
-      <a routerLink="/sueno" routerLinkActive="active" class="nav-item">
-        <span class="icon">🌙</span> Sueño
-      </a>
-      <a routerLink="/asignaturas" routerLinkActive="active" class="nav-item">
-        <span class="icon">📚</span> Asignaturas
-      </a>
-      <a routerLink="/entregas" routerLinkActive="active" class="nav-item">
-        <span class="icon">📝</span> Entregas
-      </a>
-      <a routerLink="/estudio" routerLinkActive="active" class="nav-item">
-        <span class="icon">⏱️</span> Horas de Estudio
-      </a>
-      
-      <!-- ALERTAS CON BADGE ROJO SILENCIOSO -->
-      <a routerLink="/alertas" routerLinkActive="active" class="nav-item nav-alertas">
-        <span class="icon">🔔</span> Alertas
-        <span *ngIf="alertasCriticasConteo > 0" class="badge-count-red">
-          {{ alertasCriticasConteo }}
-        </span>
-      </a>
-    </nav>
+    <!-- USUARIO LOGUEADO Y SU CARRERA SELECCIONADA -->
+    <div class="user-profile-container">
+      <div class="user-profile">
+        <div class="avatar">{{ obtenerIniciales(user.nombre) }}</div>
+        <div class="user-details">
+          <strong class="user-name">{{ user.nombre }}</strong>
+          <small class="user-email">{{ user.email }}</small>
+          <span class="badge-fet">🎓 {{ user.carrera || 'Programa Académico FET' }}</span>
+        </div>
+      </div>
 
-    <!-- TARJETA DEL USUARIO CON SU CARRERA -->
-    <div class="user-profile">
-      <div class="avatar">
-        {{ (vitalCampusService.usuarioActual$.value?.nombre || 'ED').substring(0,2).toUpperCase() }}
-      </div>
-      <div class="user-info">
-        <strong class="user-name">
-          {{ vitalCampusService.usuarioActual$.value?.nombre || 'Estudiante FET' }}
-        </strong>
-        <small class="user-email">
-          {{ vitalCampusService.usuarioActual$.value?.correo || 'estudiante@fet.edu.co' }}
-        </small>
-        <!-- CARRERA DEL ESTUDIANTE MOSTRADA AQUÍ -->
-        <small class="user-carrera" style="color: #38bdf8; font-weight: 500; margin-top: 2px; display: block;">
-          🎓 {{ vitalCampusService.usuarioActual$.value?.carrera || 'Ingeniería de Software' }}
-        </small>
-      </div>
-      <button (click)="cerrarSesion()" title="Cerrar Sesión" style="background:transparent; border:none; color:#ef4444; cursor:pointer; margin-left:auto; font-size:1.1rem;">
-        🚪
+      <button (click)="cerrarSesion()" class="btn-logout" title="Cerrar Sesión">
+        🚪 Cerrar Sesión
       </button>
     </div>
   </aside>
 
-  <!-- CONTENIDO PRINCIPAL RESTAURADO -->
-  <main class="main-content">
-    <!-- BANNER TOAST EMERGENTE FLOTANTE PARA ESTRÉS Y ALERTAS -->
-    <div *ngIf="toastAlerta" class="toast-notification" [class.toast-critica]="toastAlerta.tipo === 'CRITICA'">
-      <div class="toast-content">
-        <strong>{{ toastAlerta.titulo }}</strong>
-        <p>{{ toastAlerta.mensaje }}</p>
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="main-content" [class.full-width]="!(usuarioActual$ | async)">
+    <div 
+      *ngIf="vitalCampusService.toastNotificacion$ | async as toast" 
+      class="global-toast-banner" 
+      [ngClass]="{
+        'toast-critical': toast.tipo === 'CRITICA',
+        'toast-warning': toast.tipo === 'ADVERTENCIA',
+        'toast-info': toast.tipo === 'INFO'
+      }">
+      <div class="toast-body">
+        <strong>{{ toast.titulo }}</strong>
+        <p>{{ toast.mensaje }}</p>
       </div>
-      <button (click)="cerrarToast()" class="toast-close">✕</button>
+      <button (click)="vitalCampusService.cerrarToastGlobal()" class="btn-close-toast">✕</button>
     </div>
 
     <router-outlet></router-outlet>

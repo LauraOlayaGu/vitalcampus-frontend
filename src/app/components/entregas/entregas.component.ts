@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormsModule } from '@angular/forms';
 import { VitalCampusService } from '../../services/vitalcampus.service';
 
 @Component({
@@ -8,100 +8,113 @@ import { VitalCampusService } from '../../services/vitalcampus.service';
   templateUrl: './entregas.component.html',
   styleUrls: ['./entregas.component.css'],
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule]
+  imports: [CommonModule, FormsModule]
 })
 export class EntregasComponent implements OnInit {
-  entregaForm!: FormGroup;
-  entregas: any[] = [];
-  asignaturasDisponibles: any[] = [];
-  guardando: boolean = false;
-  exitoMsg: string = '';
+  tipoActividad: 'TRABAJO' | 'PARCIAL' = 'TRABAJO';
+  titulo: string = '';
+  asignaturaSeleccionada: string = '';
+  fechaLimite: string = '';
+  horaLimite: string = '23:59';
+  estresPercibido: number = 3;
 
-  tiposActividad = [
-    { valor: 'EXAMEN', etiqueta: '📝 Examen / Parcial / Quiz' },
-    { valor: 'TALLER', etiqueta: '📁 Trabajo / Taller / Proyecto' }
-  ];
+  asignaturasList: any[] = [];
+  entregasPendientesList: any[] = [];
 
-  nivelesEstres = [
-    { valor: 1, etiqueta: '1 - Relajado' },
-    { valor: 2, etiqueta: '2 - Moderado' },
-    { valor: 3, etiqueta: '3 - Relevante' },
-    { valor: 4, etiqueta: '4 - Intenso' },
-    { valor: 5, etiqueta: '5 - Estrés Máximo' }
-  ];
-
-  constructor(
-    private fb: FormBuilder,
-    private vitalCampusService: VitalCampusService
-  ) {}
+  constructor(public vitalCampusService: VitalCampusService) {}
 
   ngOnInit(): void {
-    this.initForm();
-    
-    // Cargar Asignaturas Guardadas
+    this.cargarAsignaturas();
+    this.suscripcionEntregas();
+  }
+
+  cargarAsignaturas(): void {
     this.vitalCampusService.asignaturas$.subscribe(asigs => {
-      this.asignaturasDisponibles = asigs;
-      if (asigs.length > 0 && !this.entregaForm.value.asignatura) {
-        this.entregaForm.patchValue({ asignatura: asigs[0].nombre });
+      this.asignaturasList = asigs || [];
+      if (this.asignaturasList.length > 0 && !this.asignaturaSeleccionada) {
+        this.asignaturaSeleccionada = this.asignaturasList[0].nombre;
       }
     });
+  }
 
-    // Cargar Entregas y Depurar Expiradas
-    this.vitalCampusService.entregas$.subscribe(datos => {
-      this.entregas = this.depurarExpiradas(datos);
+  suscripcionEntregas(): void {
+    this.vitalCampusService.entregas$.subscribe(entregas => {
+      const ahora = new Date().getTime();
+
+      // FILTRAR PARA MOSTRAR ÚNICAMENTE LAS ENTREGAS PENDIENTES (SE BORRAN LAS COMPLETADAS)
+      this.entregasPendientesList = (entregas || [])
+        .filter(e => e.estado !== 'COMPLETADA')
+        .map(e => {
+          let horasRestantes = 999;
+          let esUrgente = false;
+          let mensajeAlerta = '';
+
+          if (e.fechaLimite) {
+            const limite = new Date(`${e.fechaLimite}T${e.horaLimite || '23:59'}:00`).getTime();
+            const diffMs = limite - ahora;
+            horasRestantes = Math.round(diffMs / (1000 * 60 * 60));
+
+            if (horasRestantes < 0) {
+              mensajeAlerta = '⚠️ ¡ATENCIÓN! Esta entrega ya se encuentra vencida.';
+              esUrgente = true;
+            } else if (horasRestantes <= 36) {
+              mensajeAlerta = `⚠️ ¡ATENCIÓN! La fecha de esta entrega está cerca (Faltan ${horasRestantes}h)`;
+              esUrgente = true;
+            }
+          }
+
+          return {
+            ...e,
+            horasRestantes,
+            esUrgente,
+            mensajeAlerta
+          };
+        });
     });
   }
 
-  initForm(): void {
-    const ahora = new Date();
-    ahora.setHours(ahora.getHours() + 24);
-    const isoFecha = ahora.toISOString().substring(0, 16);
-
-    this.entregaForm = this.fb.group({
-      asignatura: ['', Validators.required],
-      titulo: ['', Validators.required],
-      tipo: ['TALLER', Validators.required],
-      fechaLimite: [isoFecha, Validators.required],
-      estres: [3, Validators.required]
-    });
+  seleccionarTipo(tipo: 'TRABAJO' | 'PARCIAL'): void {
+    this.tipoActividad = tipo;
   }
 
-  // Remueve actividades cuya fecha límite ya pasó respecto al momento actual
-  depurarExpiradas(lista: any[]): any[] {
-    const ahoraTimestamp = new Date().getTime();
-    return lista.filter(e => {
-      if (!e.fechaLimite) return true;
-      const limiteTimestamp = new Date(e.fechaLimite).getTime();
-      return limiteTimestamp >= ahoraTimestamp;
-    });
+  seleccionarEstres(nivel: number): void {
+    this.estresPercibido = nivel;
   }
 
-  obtenerEvaluacionesExamenes(): any[] {
-    return this.entregas.filter(e => e.tipo === 'EXAMEN');
-  }
+  guardarActividad(): void {
+    if (!this.titulo.trim()) {
+      alert('Por favor, ingresa el título de la actividad.');
+      return;
+    }
 
-  obtenerTrabajosProyectos(): any[] {
-    return this.entregas.filter(e => e.tipo !== 'EXAMEN');
-  }
+    if (!this.fechaLimite) {
+      alert('Por favor, selecciona una fecha límite.');
+      return;
+    }
 
-  onSubmit(): void {
-    if (this.entregaForm.invalid) return;
-
-    this.guardando = true;
     const payload = {
-      ...this.entregaForm.value,
-      estado: 'PENDIENTE'
+      tipo: this.tipoActividad,
+      titulo: this.titulo.trim(),
+      asignatura: this.asignaturaSeleccionada || 'General',
+      fechaLimite: this.fechaLimite,
+      horaLimite: this.horaLimite,
+      estresPercibido: this.estresPercibido
     };
 
     this.vitalCampusService.createEntrega(payload).subscribe(() => {
-      this.guardando = false;
-      this.exitoMsg = 'Actividad programada e impacto de estrés registrado';
-      this.entregaForm.patchValue({ titulo: '' });
-      setTimeout(() => this.exitoMsg = '', 3000);
+      this.titulo = '';
+      this.fechaLimite = '';
     });
   }
 
-  eliminar(id: any): void {
-    this.vitalCampusService.deleteEntrega(id).subscribe();
+  // MARCAR COMO HECHA (ELIMINA LA TARJETA DE PANTALLA Y BAJA EL RIESGO)
+  marcarComoHecha(id: any): void {
+    this.vitalCampusService.cambiarEstadoEntrega(id, 'COMPLETADA').subscribe();
+  }
+
+  eliminarActividad(id: any): void {
+    if (confirm('¿Deseas eliminar esta entrega programada?')) {
+      this.vitalCampusService.deleteEntrega(id).subscribe();
+    }
   }
 }

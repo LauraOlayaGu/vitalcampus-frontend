@@ -1,104 +1,221 @@
-<div class="page-container">
-  <div class="header-section">
-    <h2>⏱️ Gestión de Horas de Estudio y Enfoque</h2>
-    <p class="subtitle">Suma tus minutos de estudio. El cronómetro continúa activo incluso si cambias de página.</p>
+<div class="container">
+  
+  <div class="header-box">
+    <h2>⏱️ Gestión de Horas de Estudio por Asignaturas</h2>
+    <p class="subtitle">Organiza tus sesiones por materia y monitorea tu progreso acumulado por tipo de estudio.</p>
   </div>
 
-  <div *ngIf="exitoMsg" class="alert alert-success">{{ exitoMsg }}</div>
+  <!-- BANNERS DE MENSAJES -->
+  <div *ngIf="exitoMsg" class="alert alert-success">
+    {{ exitoMsg }}
+  </div>
 
-  <!-- CONTROL DEL CRONÓMETRO PERSONALIZABLE Y PENALIZACIÓN DE DISTRACCIÓN -->
-  <div class="pomodoro-banner card">
-    <div class="pomodoro-info">
-      <h3>⏱️ Bloque de Enfoque Personalizado</h3>
-      <p>Selecciona los minutos a estudiar sin distracciones. Si te sales o cambias de pestaña, se sumarán <strong>+2 min</strong> de penalización por distracción.</p>
+  <div *ngIf="errorMsg" class="alert alert-error">
+    {{ errorMsg }}
+  </div>
+
+  <!-- TARJETA TOTAL ACUMULADO EN EL SEMESTRE -->
+  <div class="card total-kpi-card">
+    <div class="kpi-content">
+      <span class="kpi-label">🏆 TOTAL ACUMULADO EN EL SEMESTRE</span>
+      <div class="kpi-big-value">
+        {{ obtenerHorasTotalesSemestre() }}
+      </div>
+    </div>
+    <button (click)="toggleRegistroManual()" class="btn btn-secondary btn-sm">
+      {{ mostrarFormularioManual ? '✕ Cancelar Formulario' : '+ Registrar Sesión Manual / Olvidada' }}
+    </button>
+  </div>
+
+  <!-- FORMULARIO MANUAL CON CAMPO DE OBJETIVO / CATEGORÍA -->
+  <div *ngIf="mostrarFormularioManual" class="card manual-form-wrapper">
+    <h3>📝 Registrar Horas Manualmente</h3>
+    <div class="grid-form">
+      <div class="form-group">
+        <label>Asignatura</label>
+        <select [(ngModel)]="manualAsignatura" class="form-control">
+          <option *ngFor="let a of asignaturasDisponibles" [value]="a.nombre">{{ a.nombre }}</option>
+          <option *ngIf="asignaturasDisponibles.length === 0" value="General">General</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Objetivo / Categoría</label>
+        <select [(ngModel)]="manualObjetivo" class="form-control">
+          <option value="Taller / Guía">📝 Taller / Guía</option>
+          <option value="Lectura / Apuntes">📖 Lectura / Apuntes</option>
+          <option value="Repaso de Parcial">🎯 Repaso de Parcial</option>
+          <option value="Preparación de Exposición">🗣️ Preparación de Exposición</option>
+          <option value="Proyecto Final">💻 Proyecto Final</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Horas Estudiadas</label>
+        <input type="number" [(ngModel)]="manualHoras" min="0.5" step="0.5" class="form-control" />
+      </div>
+
+      <div class="form-group">
+        <label>Fecha</label>
+        <input type="date" [(ngModel)]="manualFecha" class="form-control" />
+      </div>
+    </div>
+
+    <button (click)="guardarSesionManual()" class="btn btn-primary btn-block">
+      💾 Guardar Sesión Manual
+    </button>
+  </div>
+
+  <!-- PANEL DE CRONÓMETRO DE ESTUDIO -->
+  <div class="card pomodoro-card">
+    <h3>⏱️ Sesión de Enfoque Activa</h3>
+    <p class="card-desc">Selecciona la materia y el objetivo para empezar a acumular tiempo.</p>
+
+    <div class="pomodoro-config-grid">
       
-      <!-- BOTONES DE SELECCIÓN DE MINUTOS -->
-      <div class="preset-buttons">
-        <button [class.active]="minutosSeleccionados === 15" [disabled]="vitalCampusService.pomodoroActivo" (click)="cambiarTiempoConfig(15)" class="btn-preset">15 min</button>
-        <button [class.active]="minutosSeleccionados === 25" [disabled]="vitalCampusService.pomodoroActivo" (click)="cambiarTiempoConfig(25)" class="btn-preset">25 min</button>
-        <button [class.active]="minutosSeleccionados === 45" [disabled]="vitalCampusService.pomodoroActivo" (click)="cambiarTiempoConfig(45)" class="btn-preset">45 min</button>
-        <button [class.active]="minutosSeleccionados === 60" [disabled]="vitalCampusService.pomodoroActivo" (click)="cambiarTiempoConfig(60)" class="btn-preset">60 min</button>
-      </div>
-
-      <div *ngIf="vitalCampusService.distraccionesConteo > 0" class="penalty-tag">
-        ⚠️ Distracciones detectadas: <strong>{{ vitalCampusService.distraccionesConteo }}</strong> (+{{ vitalCampusService.distraccionesConteo * 2 }} min agregados)
-      </div>
-    </div>
-
-    <div class="pomodoro-controls">
-      <div class="timer-display">{{ formatearTiempo() }}</div>
-      <button (click)="iniciarOpausar()" class="btn btn-pomodoro">
-        {{ vitalCampusService.pomodoroActivo ? '⏸️ Pausar' : '▶️ Iniciar Enfoque' }}
-      </button>
-    </div>
-  </div>
-
-  <div class="grid-layout">
-    <!-- REGISTRO MANUAL -->
-    <div class="card form-card">
-      <div class="card-header">
-        <h3>+ Registrar Sesión Manual</h3>
-      </div>
-
-      <form [formGroup]="estudioForm" (ngSubmit)="onSubmit()" class="form-grid">
-        
-        <div class="form-group full-width">
-          <label>Asignatura *</label>
-          <select formControlName="asignatura" class="form-control select-dark">
-            <option value="" disabled>Selecciona una asignatura</option>
+      <div class="config-controls">
+        <div class="form-group">
+          <label>📚 Asignatura:</label>
+          <select 
+            [value]="asignaturaSeleccionadaCronometro" 
+            (change)="cambiarAsignaturaCronometro($event)" 
+            class="form-control">
             <option *ngFor="let asig of asignaturasDisponibles" [value]="asig.nombre">
-              📚 {{ asig.nombre }}
+              {{ asig.nombre }}
             </option>
+            <option *ngIf="asignaturasDisponibles.length === 0" value="General">General</option>
           </select>
         </div>
 
         <div class="form-group">
-          <label>Fecha de la Sesión</label>
-          <input type="date" formControlName="fecha" class="form-control" />
+          <label>🎯 Objetivo:</label>
+          <select 
+            [value]="tipoActividadSeleccionada" 
+            (change)="cambiarTipoActividad($event)" 
+            class="form-control">
+            <option value="Taller / Guía">📝 Taller / Guía</option>
+            <option value="Lectura / Apuntes">📖 Lectura / Apuntes</option>
+            <option value="Repaso de Parcial">🎯 Repaso de Parcial</option>
+            <option value="Preparación de Exposición">🗣️ Preparación de Exposición</option>
+            <option value="Proyecto Final">💻 Proyecto Final</option>
+          </select>
         </div>
 
-        <div class="form-group">
-          <label>Duración (Minutos)</label>
-          <input type="number" formControlName="duracionMinutos" class="form-control" placeholder="60" />
+        <!-- PRESETS DE TIEMPO -->
+        <div class="presets-row">
+          <button 
+            (click)="cambiarTiempoConfig(15)" 
+            [class.active]="minutosPersonalizadosInput === 15"
+            class="btn-preset">15 min</button>
+          
+          <button 
+            (click)="cambiarTiempoConfig(25)" 
+            [class.active]="minutosPersonalizadosInput === 25"
+            class="btn-preset">25 min</button>
+          
+          <button 
+            (click)="cambiarTiempoConfig(45)" 
+            [class.active]="minutosPersonalizadosInput === 45"
+            class="btn-preset">45 min</button>
+          
+          <button 
+            (click)="cambiarTiempoConfig(60)" 
+            [class.active]="minutosPersonalizadosInput === 60"
+            class="btn-preset">60 min</button>
+
+          <div class="custom-min-box">
+            <span>✍️ Personalizar:</span>
+            <input 
+              type="number" 
+              [value]="minutosPersonalizadosInput" 
+              (input)="actualizarTiempoInput($event)" 
+              min="1" 
+              class="input-min-sm" />
+            <span>min</span>
+          </div>
         </div>
 
-        <div class="form-group full-width">
-          <label>Notas o Temas Estudias (Opcional)</label>
-          <textarea formControlName="notas" rows="3" class="form-control textarea" placeholder="Ej. Repaso de consultas SQL, patrones de diseño..."></textarea>
+        <!-- MODO INVESTIGACIÓN LIBRE -->
+        <div class="investigation-toggle">
+          <label class="switch">
+            <input 
+              type="checkbox" 
+              [checked]="modoInvestigacionLibre" 
+              (change)="toggleModoInvestigacion()" />
+            <span class="slider round"></span>
+          </label>
+          <span class="switch-label">
+            🌐 <strong>Modo Investigación Libre:</strong> 
+            {{ modoInvestigacionLibre ? 'Pausado (puedes salir a consultar)' : 'Estricto (+2 min si cambias de pestaña)' }}
+          </span>
         </div>
+      </div>
 
-        <div class="form-actions full-width">
-          <button type="submit" [disabled]="estudioForm.invalid || guardando" class="btn btn-primary">
-            {{ guardando ? 'Guardando...' : 'Registrar Sesión' }}
+      <!-- CRONÓMETRO -->
+      <div class="timer-box">
+        <div class="timer-display">{{ formatearTiempo() }}</div>
+        
+        <div class="timer-actions">
+          <button (click)="iniciarOpausar()" class="btn btn-pomodoro" [class.btn-pausa]="enfoqueEnCurso">
+            {{ enfoqueEnCurso ? '⏸️ Pausar Enfoque' : '▶️ Iniciar Enfoque' }}
+          </button>
+
+          <button (click)="guardarRegistroManualCronometro()" class="btn btn-save-session" title="Guardar tiempo transcurrido">
+            💾 Guardar Registro de Estudio
           </button>
         </div>
-
-      </form>
-    </div>
-
-    <!-- HISTORIAL DE SESIONES -->
-    <div class="card history-card">
-      <div class="card-header flex-header">
-        <div>
-          <h3>📋 Sesiones de Estudio</h3>
-          <p class="subtitle-sm">Total acumulado: <strong>{{ obtenerHorasTotales() }} horas</strong></p>
-        </div>
       </div>
 
-      <div *ngIf="sesiones.length > 0; else emptyState" class="sessions-list">
-        <div *ngFor="let s of sesiones" class="session-item">
-          <div class="session-info">
-            <strong>📚 {{ s.asignatura }}</strong>
-            <small>📅 {{ s.fecha }} &nbsp;•&nbsp; ⏱️ {{ s.duracionMinutos }} min</small>
-            <p *ngIf="s.notas" class="session-notes">"{{ s.notas }}"</p>
-          </div>
-          <button (click)="eliminar(s.id)" class="btn-delete" title="Eliminar">🗑️</button>
-        </div>
-      </div>
-
-      <ng-template #emptyState>
-        <p class="empty-text">No tienes sesiones registradas aún. ¡Usa el cronómetro de enfoque o regístrala manualmente!</p>
-      </ng-template>
     </div>
   </div>
+
+  <!-- CUADROS POR MATERIA Y SUS CATEGORÍAS AGRUPADAS -->
+  <div class="card subjects-card">
+    <h3>📚 Horas de Estudio Registradas por Materia</h3>
+
+    <div class="subjects-grid" *ngIf="materiasConCategorias.length > 0; else noSubjects">
+      <div *ngFor="let m of materiasConCategorias" class="subject-kpi-card">
+        
+        <div class="subject-header">
+          <strong>📚 {{ m.nombre }}</strong>
+        </div>
+
+        <div class="categories-list">
+          <div *ngFor="let cat of m.categorias" class="category-item">
+            
+            <div class="category-left">
+              <span class="category-title">🎯 {{ cat.categoria }}</span>
+              <small class="category-date">📅 {{ cat.fecha }}</small>
+            </div>
+
+            <div class="category-right">
+              <span class="category-badge">{{ cat.tiempoFormateado }}</span>
+
+              <button 
+                (click)="reanudarCategoriaEspecifica(m.nombre, cat.categoria)" 
+                class="btn-resume-cat" 
+                title="Reanudar el cronómetro con esta materia y categoría">
+                ▶️ Reanudar
+              </button>
+
+              <button (click)="eliminarCategoria(cat.ids)" class="btn-delete-icon" title="Eliminar esta categoría">
+                🗑️
+              </button>
+            </div>
+
+          </div>
+
+          <div *ngIf="m.categorias.length === 0" class="empty-subject-text">
+            Aún no has registrado horas de estudio en esta materia.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <ng-template #noSubjects>
+      <p class="empty-text">Aún no has agregado asignaturas. Registra materias en el menú lateral.</p>
+    </ng-template>
+  </div>
+
 </div>

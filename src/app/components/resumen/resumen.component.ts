@@ -1,6 +1,5 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
 import { VitalCampusService } from '../../services/vitalcampus.service';
 
 @Component({
@@ -8,175 +7,150 @@ import { VitalCampusService } from '../../services/vitalcampus.service';
   templateUrl: './resumen.component.html',
   styleUrls: ['./resumen.component.css'],
   standalone: true,
-  imports: [CommonModule, RouterLink]
+  imports: [CommonModule]
 })
 export class ResumenComponent implements OnInit {
-  cargando: boolean = false;
+  dashboardData: any = null;
+  alertas: any[] = [];
+  mostrarPanelAlertas: boolean = false;
+  porcentajeRiesgo: number = 0;
 
-  dashboardData: any = {
-    suenoAnoche: '0h',
-    promedioSueno: '0h',
-    cargaAcademica: '0%',
-    nivelCarga: 'Baja',
-    alertasActivas: 0,
-    nivelEstres: 'Bajo',
-    estresNivel: '1/5',
-    recomendacion: 'Cargando análisis de bienestar...'
-  };
+  pausaActivaEnCurso: boolean = false;
+  segundosRestantesPausa: number = 0;
 
-  diagramaPicos: any[] = [];
+  mensajeGalleta: string = 'Haz clic para abrir tu fortuna diaria.';
+  galletaAbierta: boolean = false;
+
+  entregasProximas: any[] = [];
+  diagramaPicos: { dia: string; x: number; y: number }[] = [];
+
   pathLineaSvg: string = '';
   pathAreaSvg: string = '';
-  entregasProximas: any[] = [];
-  proximaClaseHoy: any = null;
 
-  constructor(private vitalCampusService: VitalCampusService) {}
+  private fortunas: string[] = [
+    '✨ Un paso a la vez te llevará tan lejos como desees.',
+    '🎓 El esfuerzo de hoy es el éxito de mañana.',
+    '💡 Recuerda descansar: la mente fresca aprende mejor.',
+    '🚀 Organizar tu tiempo es darte paz mental.',
+    '🌟 ¡Confía en tus habilidades, vas por excelente camino!'
+  ];
+
+  constructor(public vitalCampusService: VitalCampusService) {}
 
   ngOnInit(): void {
-    this.cargarResumen();
-    this.obtenerGraficoPicosSueno();
-    this.obtenerProximasEntregas();
-    this.obtenerProximaClaseDelDia();
+    this.cargarDatosDashboard();
+    this.suscripcionesServicio();
   }
 
-  cargarResumen(): void {
-    this.cargando = true;
-    this.vitalCampusService.getDashboardResumen().subscribe({
-      next: (data: any) => {
-        if (data) {
-          this.dashboardData = { ...this.dashboardData, ...data };
-        }
-        this.cargando = false;
-      },
-      error: () => {
-        this.cargando = false;
-      }
+  cargarDatosDashboard(): void {
+    this.vitalCampusService.getDashboardResumen().subscribe(data => {
+      this.dashboardData = data;
     });
   }
 
-  // GENERAR GRÁFICO DE PICOS Y CURVA DE SUEÑO (SVG)
-  obtenerGraficoPicosSueno(): void {
-    this.vitalCampusService.suenos$.subscribe(suenos => {
-      const diasSemana = ['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB', 'DOM'];
-      const horasPorDia: { [key: string]: number } = { LUN: 0, MAR: 0, MIE: 0, JUE: 0, VIE: 0, SAB: 0, DOM: 0 };
-
-      // Calcular la semana actual (Lunes a Domingo)
-      const hoy = new Date();
-      const diaSemanaIndex = (hoy.getDay() + 6) % 7;
-      
-      const inicioSemana = new Date(hoy);
-      inicioSemana.setDate(hoy.getDate() - diaSemanaIndex);
-      inicioSemana.setHours(0, 0, 0, 0);
-
-      const finSemana = new Date(inicioSemana);
-      finSemana.setDate(inicioSemana.getDate() + 6);
-      finSemana.setHours(23, 59, 59, 999);
-
-      suenos.forEach(s => {
-        if (s.fecha) {
-          const fechaReg = new Date(s.fecha + 'T00:00:00');
-          if (fechaReg >= inicioSemana && fechaReg <= finSemana) {
-            const index = (fechaReg.getDay() + 6) % 7;
-            const claveDia = diasSemana[index];
-            horasPorDia[claveDia] += Number(s.horasCalculadas || 0);
-          }
-        }
-      });
-
-      // Dimensiones del canvas SVG interno
-      const width = 320;
-      const height = 130;
-      const paddingX = 25;
-      const paddingY = 20;
-      const maxHoras = 12; // Techo de 12 horas en la gráfica
-
-      const stepX = (width - paddingX * 2) / (diasSemana.length - 1);
-
-      const puntos = diasSemana.map((dia, i) => {
-        const h = Math.round(horasPorDia[dia] * 10) / 10;
-        const x = paddingX + i * stepX;
-        // Calcular Y invertido (0 arriba, height abajo)
-        const porcentajeH = Math.min(1, h / maxHoras);
-        const y = (height - paddingY) - (porcentajeH * (height - paddingY * 2));
-
-        return {
-          dia,
-          horas: h,
-          x,
-          y,
-          esDeficit: h > 0 && h < 6,
-          esOptimo: h >= 6
-        };
-      });
-
-      this.diagramaPicos = puntos;
-
-      // Generar línea de picos SVG
-      if (puntos.length > 0) {
-        let pathLine = `M ${puntos[0].x} ${puntos[0].y}`;
-        for (let i = 1; i < puntos.length; i++) {
-          pathLine += ` L ${puntos[i].x} ${puntos[i].y}`;
-        }
-        this.pathLineaSvg = pathLine;
-
-        // CERRAR ÁREA INFERIOR PARA GRADIENTE
-        const primerX = puntos[0].x;
-        const ultimoX = puntos[puntos.length - 1].x;
-        const baseY = height - 10;
-        this.pathAreaSvg = `${pathLine} L ${ultimoX} ${baseY} L ${primerX} ${baseY} Z`;
-      }
+  suscripcionesServicio(): void {
+    this.vitalCampusService.alertasSubject$.subscribe(a => {
+      this.alertas = a || [];
     });
-  }
 
-  obtenerProximasEntregas(): void {
+    this.vitalCampusService.porcentajeRiesgoActual$.subscribe(r => {
+      this.porcentajeRiesgo = Math.round(r);
+    });
+
+    this.vitalCampusService.pausaEnCurso$.subscribe(enPausa => {
+      this.pausaActivaEnCurso = enPausa;
+    });
+
+    this.vitalCampusService.segundosRestantesPausa$.subscribe(seg => {
+      this.segundosRestantesPausa = seg;
+    });
+
     this.vitalCampusService.entregas$.subscribe(entregas => {
-      const ahora = new Date().getTime();
+      this.procesarEntregasProximas(entregas || []);
+    });
 
-      this.entregasProximas = entregas
-        .filter(e => e.estado !== 'COMPLETADA')
-        .map(e => {
-          let horasRestantes = 999;
-          let esUrgente = false;
-          let textoTiempo = 'Próximamente';
-
-          if (e.fechaLimite) {
-            const limite = new Date(e.fechaLimite).getTime();
-            const diffMs = limite - ahora;
-            horasRestantes = diffMs / (1000 * 60 * 60);
-
-            if (horasRestantes < 0) {
-              textoTiempo = 'Vencida';
-            } else if (horasRestantes <= 24) {
-              textoTiempo = `Vence hoy / en ${Math.round(horasRestantes)}h`;
-              esUrgente = true;
-            } else if (horasRestantes <= 48) {
-              textoTiempo = `Mañana (${Math.round(horasRestantes)}h restantes)`;
-              esUrgente = true;
-            } else {
-              const dias = Math.round(horasRestantes / 24);
-              textoTiempo = `En ${dias} días`;
-            }
-          }
-
-          return {
-            ...e,
-            horasRestantes,
-            esUrgente,
-            textoTiempo
-          };
-        })
-        .sort((a, b) => a.horasRestantes - b.horasRestantes)
-        .slice(0, 3);
+    this.vitalCampusService.suenos$.subscribe(suenos => {
+      this.procesarDiagramaSueño(suenos || []);
     });
   }
 
-  obtenerProximaClaseDelDia(): void {
-    this.vitalCampusService.asignaturas$.subscribe(asignaturas => {
-      const diasMap = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
-      const diaHoy = diasMap[new Date().getDay()];
+  togglePanelAlertas(): void {
+    this.mostrarPanelAlertas = !this.mostrarPanelAlertas;
+  }
 
-      const claseHoy = asignaturas.find(a => a.diaClase === diaHoy);
-      this.proximaClaseHoy = claseHoy || null;
+  aplicarPausa15Min(): void {
+    this.vitalCampusService.iniciarPausaActiva15Min();
+  }
+
+  formatearTiempoSegundos(segundos: number): string {
+    const mins = Math.floor(segundos / 60);
+    const segs = segundos % 60;
+    return `${mins}:${segs < 10 ? '0' : ''}${segs}`;
+  }
+
+  descartarAlertaIndividual(id: any): void {
+    this.vitalCampusService.eliminarAlertaPorId(id);
+  }
+
+  abrirGalleta(): void {
+    const idx = Math.floor(Math.random() * this.fortunas.length);
+    this.mensajeGalleta = this.fortunas[idx];
+    this.galletaAbierta = true;
+  }
+
+  procesarEntregasProximas(entregas: any[]): void {
+    const ahora = new Date().getTime();
+    const pendientes = entregas.filter(e => e.estado !== 'COMPLETADA');
+
+    this.entregasProximas = pendientes.map(e => {
+      let etiqueta = 'Próximo';
+      if (e.fechaLimite) {
+        const limite = new Date(`${e.fechaLimite}T${e.horaLimite || '23:59'}:00`).getTime();
+        const diffHoras = (limite - ahora) / (1000 * 60 * 60);
+
+        if (diffHoras <= 24 && diffHoras >= 0) etiqueta = 'Hoy';
+        else if (diffHoras <= 48 && diffHoras > 24) etiqueta = 'Mañana';
+        else etiqueta = 'Esta semana';
+      }
+      return { ...e, etiquetaTiempo: etiqueta };
+    }).slice(0, 3);
+  }
+
+  // PROCESAMIENTO AJUSTADO DEL GRÁFICO SVG DENTRO DE LOS MÁRGENES DERECHOS/IZQUIERDOS
+  procesarDiagramaSueño(suenos: any[]): void {
+    const dias = ['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB', 'DOM'];
+    const mapa: { [d: string]: number } = { LUN: 0, MAR: 0, MIE: 0, JUE: 0, VIE: 0, SAB: 0, DOM: 0 };
+
+    suenos.forEach(s => {
+      if (s.fecha) {
+        const partes = s.fecha.split('-').map(Number);
+        const dateObj = new Date(partes[0], partes[1] - 1, partes[2]);
+        let idx = dateObj.getDay() - 1;
+        if (idx === -1) idx = 6;
+        const clave = dias[idx];
+        const h = Number(s.horasCalculadas || s.duracion || 0);
+        mapa[clave] = Math.round(((mapa[clave] || 0) + h) * 10) / 10;
+      }
     });
+
+    const paddingX = 25;
+    const widthDisponible = 380 - (paddingX * 2);
+    const stepX = widthDisponible / 6;
+
+    this.diagramaPicos = dias.map((dia, index) => {
+      const x = Math.round(paddingX + (index * stepX));
+      const horas = mapa[dia] || 0;
+      // Altura escalada entre y=15 (máximo 10h) e y=105 (0h)
+      const y = Math.round(105 - Math.min((horas / 10) * 90, 90));
+      return { dia, x, y };
+    });
+
+    if (this.diagramaPicos.length > 0) {
+      const puntos = this.diagramaPicos.map(p => `${p.x},${p.y}`).join(' L ');
+      this.pathLineaSvg = `M ${puntos}`;
+      const primerX = this.diagramaPicos[0].x;
+      const ultimoX = this.diagramaPicos[this.diagramaPicos.length - 1].x;
+      this.pathAreaSvg = `M ${primerX},115 L ${puntos} L ${ultimoX},115 Z`;
+    }
   }
 }
