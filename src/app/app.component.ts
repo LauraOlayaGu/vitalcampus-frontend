@@ -15,7 +15,6 @@ import { Observable } from 'rxjs';
 export class AppComponent implements OnInit {
   title = 'VitalCampus';
 
-  // PROPIEDAD DECLARADA CORRECTAMENTE
   usuarioActual$!: Observable<any | null>;
   alertasNoLeidasCount$!: Observable<number>;
   entregasPendientesCount$!: Observable<number>;
@@ -27,6 +26,11 @@ export class AppComponent implements OnInit {
 
   ngOnInit(): void {
     this.usuarioActual$ = this.vitalCampusService.usuarioActualSubject$;
+
+    // Redirigir al login si al cargar la app no hay un usuario autenticado
+    if (!this.vitalCampusService.usuarioActualSubject$.value) {
+      this.router.navigate(['/login']);
+    }
 
     this.alertasNoLeidasCount$ = this.vitalCampusService.alertasSubject$.pipe(
       map(alertas => (alertas || []).filter(a => !a.leida).length)
