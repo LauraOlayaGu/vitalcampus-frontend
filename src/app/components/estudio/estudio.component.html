@@ -14,6 +14,11 @@
     {{ errorMsg }}
   </div>
 
+  <!-- AVISO DE PAUSA ACTIVA EN CURSO -->
+  <div *ngIf="vitalCampusService.pausaEnCurso$ | async" class="alert alert-error" style="background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #fca5a5; font-weight: bold;">
+    ☕ Pausa activa en curso (Descanso de 15 min). El inicio de estudio permanece pausado hasta completar el descanso.
+  </div>
+
   <!-- TARJETA TOTAL ACUMULADO EN EL SEMESTRE -->
   <div class="card total-kpi-card">
     <div class="kpi-content">
@@ -156,7 +161,13 @@
         <div class="timer-display">{{ formatearTiempo() }}</div>
         
         <div class="timer-actions">
-          <button (click)="iniciarOpausar()" class="btn btn-pomodoro" [class.btn-pausa]="enfoqueEnCurso">
+          <button 
+            (click)="iniciarOpausar()" 
+            class="btn btn-pomodoro" 
+            [class.btn-pausa]="enfoqueEnCurso"
+            [disabled]="vitalCampusService.pausaEnCurso$ | async"
+            [style.opacity]="(vitalCampusService.pausaEnCurso$ | async) ? '0.5' : '1'"
+            [style.cursor]="(vitalCampusService.pausaEnCurso$ | async) ? 'not-allowed' : 'pointer'">
             {{ enfoqueEnCurso ? '⏸️ Pausar Enfoque' : '▶️ Iniciar Enfoque' }}
           </button>
 

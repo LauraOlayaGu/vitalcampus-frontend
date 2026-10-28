@@ -33,7 +33,7 @@ export class SuenoComponent implements OnInit {
     this.suscripcionHistorial();
   }
 
-  // OBTENER FECHA LOCAL REAL (Sin desfase UTC de noche)
+  // OBTENER FECHA LOCAL REAL (Sin desfase UTC)
   establecerFechaLocalHoy(): void {
     const hoy = new Date();
     const year = hoy.getFullYear();
@@ -79,7 +79,15 @@ export class SuenoComponent implements OnInit {
     const mapa: { [dia: string]: number } = { LUN: 0, MAR: 0, MIE: 0, JUE: 0, VIE: 0, SAB: 0, DOM: 0 };
     const diasClave = ['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB', 'DOM'];
 
+    //Tomamos un registro único por día para evitar acumulaciones duplicadas
+    const mapaFechasUnicas: { [fecha: string]: any } = {};
     registros.forEach(s => {
+      if (s.fecha) {
+        mapaFechasUnicas[s.fecha] = s;
+      }
+    });
+
+    Object.values(mapaFechasUnicas).forEach((s: any) => {
       if (s.fecha) {
         const partes = s.fecha.split('-').map(Number);
         const dateObj = new Date(partes[0], partes[1] - 1, partes[2]);
@@ -91,7 +99,7 @@ export class SuenoComponent implements OnInit {
         const h = Number(s.horasCalculadas || s.duracion || 0);
         
         if (clave && !isNaN(h)) {
-          mapa[clave] = Math.round(((mapa[clave] || 0) + h) * 10) / 10;
+          mapa[clave] = Math.round(h * 10) / 10;
         }
       }
     });
@@ -134,8 +142,21 @@ export class SuenoComponent implements OnInit {
       observaciones: this.observaciones
     };
 
+    // ELIMINAR REGISTROS PREVIOS DE LA MISMA FECHA PARA EVITAR DUPLICADOS
+    const actuales = this.vitalCampusService.suenos$.getValue() || [];
+    const existentesEnMismaFecha = actuales.filter(s => s.fecha === this.fechaRegistro);
+    existentesEnMismaFecha.forEach(e => {
+      this.vitalCampusService.deleteSueno(e.id).subscribe();
+    });
+
     this.vitalCampusService.createSueno(nuevoRegistro).subscribe(() => {
       this.observaciones = '';
+      this.vitalCampusService.mostrarToastGlobal(
+        '🌙 Sueño Registrado',
+        `Se han actualizado tus ${this.horasCalculadas} hrs de descanso para la fecha ${this.fechaRegistro}.`,
+        'INFO',
+        false
+      );
     });
   }
 

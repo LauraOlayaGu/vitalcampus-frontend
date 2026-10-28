@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { VitalCampusService } from '../../services/vitalcampus.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-estudio',
@@ -21,12 +22,8 @@ export class EstudioComponent implements OnInit, OnDestroy {
 
   minutosPersonalizadosInput: number = 25;
   modoInvestigacionLibre: boolean = true;
-
-  // CRONÓMETRO DE ESTUDIO
-  enfoqueEnCurso: boolean = false;
-  segundosRestantes: number = 25 * 60;
-  segundosInicialesSesion: number = 25 * 60;
-  intervaloEnfoque: any = null;
+  private yaPenalizadoEnEstaSalida: boolean = false;
+  private autoSaveSub: Subscription | null = null;
 
   // FORMULARIO MANUAL
   manualAsignatura: string = '';
@@ -43,18 +40,56 @@ export class EstudioComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.cargarAsignaturas();
     this.suscripcionSesiones();
+    this.sincronizarConServicioGlobal();
+
+    // ESCUCHAR CUANDO EL TEMPORIZADOR LLEGA A 00:00 COMPLETADO
+    this.autoSaveSub = this.vitalCampusService.sesionCompletadaAuto$.subscribe(completada => {
+      if (completada) {
+        this.guardarRegistroAutoAlFinalizar();
+      }
+    });
   }
 
   ngOnDestroy(): void {
-    this.detenerRelojEstudio();
+    if (this.autoSaveSub) {
+      this.autoSaveSub.unsubscribe();
+    }
+    this.vitalCampusService.pomodoroAsignatura = this.asignaturaSeleccionadaCronometro;
+    this.vitalCampusService.pomodoroObjetivo = this.tipoActividadSeleccionada;
+    this.vitalCampusService.pomodoroModoInvestigacionLibre = this.modoInvestigacionLibre;
+  }
+
+  sincronizarConServicioGlobal(): void {
+    this.minutosPersonalizadosInput = this.vitalCampusService.pomodoroMinutosConfig;
+    this.modoInvestigacionLibre = this.vitalCampusService.pomodoroModoInvestigacionLibre;
+    
+    if (this.vitalCampusService.pomodoroAsignatura) {
+      this.asignaturaSeleccionadaCronometro = this.vitalCampusService.pomodoroAsignatura;
+    }
+    if (this.vitalCampusService.pomodoroObjetivo) {
+      this.tipoActividadSeleccionada = this.vitalCampusService.pomodoroObjetivo;
+    }
+  }
+
+  get enfoqueEnCurso(): boolean {
+    return this.vitalCampusService.pomodoroActivo;
+  }
+
+  get segundosRestantes(): number {
+    return this.vitalCampusService.pomodoroSegundosRestantes;
   }
 
   @HostListener('window:blur')
   onWindowBlur(): void {
-    if (this.enfoqueEnCurso && !this.modoInvestigacionLibre) {
+    if (this.enfoqueEnCurso && !this.modoInvestigacionLibre && !this.yaPenalizadoEnEstaSalida) {
+      this.yaPenalizadoEnEstaSalida = true;
       this.vitalCampusService.registrarDistraccion();
-      this.segundosRestantes += 120;
     }
+  }
+
+  @HostListener('window:focus')
+  onWindowFocus(): void {
+    this.yaPenalizadoEnEstaSalida = false;
   }
 
   cargarAsignaturas(): void {
@@ -156,17 +191,20 @@ export class EstudioComponent implements OnInit, OnDestroy {
 
   cambiarAsignaturaCronometro(event: any): void {
     this.asignaturaSeleccionadaCronometro = event.target.value;
+    this.vitalCampusService.pomodoroAsignatura = this.asignaturaSeleccionadaCronometro;
   }
 
   cambiarTipoActividad(event: any): void {
     this.tipoActividadSeleccionada = event.target.value;
+    this.vitalCampusService.pomodoroObjetivo = this.tipoActividadSeleccionada;
   }
 
   cambiarTiempoConfig(minutos: number): void {
     if (this.enfoqueEnCurso) this.pausarEnfoque();
     this.minutosPersonalizadosInput = minutos;
-    this.segundosRestantes = minutos * 60;
-    this.segundosInicialesSesion = minutos * 60;
+    this.vitalCampusService.pomodoroMinutosConfig = minutos;
+    this.vitalCampusService.pomodoroSegundosRestantes = minutos * 60;
+    this.vitalCampusService.pomodoroSegundosTranscurridosTotal = 0;
   }
 
   actualizarTiempoInput(event: any): void {
@@ -174,17 +212,29 @@ export class EstudioComponent implements OnInit, OnDestroy {
     if (val >= 1) {
       this.minutosPersonalizadosInput = val;
       if (!this.enfoqueEnCurso) {
-        this.segundosRestantes = val * 60;
-        this.segundosInicialesSesion = val * 60;
+        this.vitalCampusService.pomodoroMinutosConfig = val;
+        this.vitalCampusService.pomodoroSegundosRestantes = val * 60;
+        this.vitalCampusService.pomodoroSegundosTranscurridosTotal = 0;
       }
     }
   }
 
   toggleModoInvestigacion(): void {
     this.modoInvestigacionLibre = !this.modoInvestigacionLibre;
+    this.vitalCampusService.pomodoroModoInvestigacionLibre = this.modoInvestigacionLibre;
   }
 
   iniciarOpausar(): void {
+    if (this.vitalCampusService.pausaEnCurso$.getValue()) {
+      this.vitalCampusService.mostrarToastGlobal(
+        '☕ Pausa Activa en Curso',
+        'No puedes iniciar una sesión de estudio mientras estás en tu descanso obligatorio de 15 minutos.',
+        'ADVERTENCIA',
+        false
+      );
+      return;
+    }
+
     if (this.enfoqueEnCurso) {
       this.pausarEnfoque();
     } else {
@@ -192,50 +242,19 @@ export class EstudioComponent implements OnInit, OnDestroy {
     }
   }
 
-  // INICIO DE ENFOQUE CON INCREMENTO PAULATINO DE RIESGO
   iniciarEnfoque(): void {
-    this.enfoqueEnCurso = true;
     this.errorMsg = '';
     this.vitalCampusService.iniciarPomodoro(this.minutosPersonalizadosInput);
-
-    let contadorTicks = 0;
-
-    this.intervaloEnfoque = setInterval(() => {
-      if (this.segundosRestantes > 0) {
-        this.segundosRestantes--;
-        contadorTicks++;
-
-        // Cada 15 segundos de estudio continuo, el riesgo sube un 2%
-        if (contadorTicks % 15 === 0) {
-          this.vitalCampusService.incrementarRiesgoPorEstudio(2);
-        }
-      } else {
-        this.finalizarSesionExito();
-      }
-    }, 1000);
   }
 
   pausarEnfoque(): void {
-    this.detenerRelojEstudio();
-    this.enfoqueEnCurso = false;
     this.vitalCampusService.pausarPomodoro();
   }
 
-  guardarRegistroManualCronometro(): void {
-    const segundosTranscurridos = this.segundosInicialesSesion - this.segundosRestantes;
-
-    if (segundosTranscurridos < 60) {
-      this.errorMsg = '⚠️ Debes estudiar al menos 1 minuto (60 segundos) para poder guardar un registro de estudio.';
-      this.vitalCampusService.mostrarToastGlobal('⚠️ Tiempo Insuficiente', 'Debes estudiar al menos 1 minuto para registrar.', 'ADVERTENCIA', false);
-      setTimeout(() => this.errorMsg = '', 5000);
-      return;
-    }
-
-    if (this.enfoqueEnCurso) {
-      this.pausarEnfoque();
-    }
-
-    const minutosGuardar = Math.round(segundosTranscurridos / 60);
+  // AUTO-GUARDADO DE LA SESIÓN COMPLETADA HASTA EL FINAL (00:00)
+  private guardarRegistroAutoAlFinalizar(): void {
+    const segundosTotalesAcumulados = this.vitalCampusService.pomodoroSegundosTranscurridosTotal;
+    const minutosGuardar = Math.max(1, Math.round(segundosTotalesAcumulados / 60));
 
     const payload = {
       asignatura: this.asignaturaSeleccionadaCronometro || 'General',
@@ -245,54 +264,74 @@ export class EstudioComponent implements OnInit, OnDestroy {
     };
 
     this.vitalCampusService.createSesionEstudio(payload).subscribe(() => {
-      this.exitoMsg = `🎉 Registrado: ${minutosGuardar} min guardados en "${payload.objetivo}" de ${payload.asignatura}.`;
+      this.exitoMsg = `🎉 ¡Tiempo Completado! Se registraron automáticamente ${minutosGuardar} min en "${payload.objetivo}" de ${payload.asignatura}.`;
       this.errorMsg = '';
-      this.segundosRestantes = this.minutosPersonalizadosInput * 60;
-      this.segundosInicialesSesion = this.segundosRestantes;
-      this.procesarAgrupacionPorCategorias();
-      setTimeout(() => this.exitoMsg = '', 5000);
-    });
-  }
-
-  finalizarSesionExito(): void {
-    this.detenerRelojEstudio();
-    this.enfoqueEnCurso = false;
-    this.vitalCampusService.pausarPomodoro();
-
-    this.reproducirAlarmaEstudioExito();
-
-    const payload = {
-      asignatura: this.asignaturaSeleccionadaCronometro || 'General',
-      objetivo: this.tipoActividadSeleccionada,
-      duracionMinutos: this.minutosPersonalizadosInput,
-      fecha: new Date().toISOString().substring(0, 10)
-    };
-
-    this.vitalCampusService.createSesionEstudio(payload).subscribe(() => {
-      this.exitoMsg = `🎉 ¡Sesión completada! Se sumaron ${this.minutosPersonalizadosInput} min a ${payload.objetivo}.`;
-      this.segundosRestantes = this.minutosPersonalizadosInput * 60;
-      this.segundosInicialesSesion = this.segundosRestantes;
+      
+      this.vitalCampusService.pomodoroSegundosRestantes = this.minutosPersonalizadosInput * 60;
+      this.vitalCampusService.pomodoroSegundosTranscurridosTotal = 0;
+      
       this.procesarAgrupacionPorCategorias();
       setTimeout(() => this.exitoMsg = '', 6000);
     });
   }
 
-  private detenerRelojEstudio(): void {
-    if (this.intervaloEnfoque) {
-      clearInterval(this.intervaloEnfoque);
-      this.intervaloEnfoque = null;
+  // GUARDADO MANUAL ANTICIPADO: VERIFICA QUE HAYAN TRANSCURRIDO AL MENOS 60 SEGUNDOS REALES
+  guardarRegistroManualCronometro(): void {
+    const segundosRealesTranscurridos = this.vitalCampusService.pomodoroSegundosTranscurridosTotal;
+
+    if (segundosRealesTranscurridos < 60) {
+      this.errorMsg = '⚠️ Debes estudiar al menos 1 minuto (60 segundos reales) para poder guardar un registro parcial.';
+      this.vitalCampusService.mostrarToastGlobal('⚠️ Tiempo Insuficiente', 'Debes estudiar al menos 1 minuto real para registrar.', 'ADVERTENCIA', false);
+      setTimeout(() => this.errorMsg = '', 5000);
+      return;
     }
+
+    if (this.enfoqueEnCurso) {
+      this.pausarEnfoque();
+    }
+
+    const minutosGuardar = Math.round(segundosRealesTranscurridos / 60);
+
+    const payload = {
+      asignatura: this.asignaturaSeleccionadaCronometro || 'General',
+      objetivo: this.tipoActividadSeleccionada,
+      duracionMinutos: minutosGuardar,
+      fecha: new Date().toISOString().substring(0, 10)
+    };
+
+    this.vitalCampusService.createSesionEstudio(payload).subscribe(() => {
+      this.exitoMsg = `🎉 Sesión parcial guardada: ${minutosGuardar} min registrados en "${payload.objetivo}" de ${payload.asignatura}.`;
+      this.errorMsg = '';
+      
+      this.vitalCampusService.pomodoroSegundosRestantes = this.minutosPersonalizadosInput * 60;
+      this.vitalCampusService.pomodoroSegundosTranscurridosTotal = 0;
+      
+      this.procesarAgrupacionPorCategorias();
+      setTimeout(() => this.exitoMsg = '', 5000);
+    });
   }
 
   reanudarCategoriaEspecifica(materiaNombre: string, categoriaNombre: string): void {
+    if (this.vitalCampusService.pausaEnCurso$.getValue()) {
+      this.vitalCampusService.mostrarToastGlobal(
+        '☕ Pausa Activa en Curso',
+        'Debes completar o finalizar tu descanso activo antes de reanudar la sesión de estudio.',
+        'ADVERTENCIA',
+        false
+      );
+      return;
+    }
+
     if (this.enfoqueEnCurso) {
       this.pausarEnfoque();
     }
 
     this.asignaturaSeleccionadaCronometro = materiaNombre;
     this.tipoActividadSeleccionada = categoriaNombre;
-    this.segundosRestantes = this.minutosPersonalizadosInput * 60;
-    this.segundosInicialesSesion = this.minutosPersonalizadosInput * 60;
+    this.vitalCampusService.pomodoroAsignatura = materiaNombre;
+    this.vitalCampusService.pomodoroObjetivo = categoriaNombre;
+    this.vitalCampusService.pomodoroSegundosRestantes = this.minutosPersonalizadosInput * 60;
+    this.vitalCampusService.pomodoroSegundosTranscurridosTotal = 0;
 
     this.iniciarEnfoque();
   }
@@ -306,37 +345,10 @@ export class EstudioComponent implements OnInit, OnDestroy {
     }
   }
 
-  reproducirAlarmaEstudioExito(): void {
-    try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const notas = [523.25, 659.25, 783.99, 1046.50];
-      const ahora = audioCtx.currentTime;
-
-      notas.forEach((frecuencia, i) => {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(frecuencia, ahora + i * 0.22);
-
-        gain.gain.setValueAtTime(0.01, ahora + i * 0.22);
-        gain.gain.exponentialRampToValueAtTime(0.3, ahora + i * 0.22 + 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.001, ahora + i * 0.22 + 0.2);
-
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-
-        osc.start(ahora + i * 0.22);
-        osc.stop(ahora + i * 0.22 + 0.2);
-      });
-    } catch (e) {
-      console.log('Audio no interactuado aún');
-    }
-  }
-
   formatearTiempo(): string {
-    const min = Math.floor(this.segundosRestantes / 60);
-    const seg = this.segundosRestantes % 60;
+    const segTotales = this.segundosRestantes;
+    const min = Math.floor(segTotales / 60);
+    const seg = segTotales % 60;
     return `${min < 10 ? '0' : ''}${min}:${seg < 10 ? '0' : ''}${seg}`;
   }
 

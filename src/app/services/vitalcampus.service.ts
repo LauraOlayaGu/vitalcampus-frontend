@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
+import { BehaviorSubject, Observable, of, throwError, Subject } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -13,9 +13,11 @@ export class VitalCampusService {
   public sesionesEstudio$ = new BehaviorSubject<any[]>([]);
   public suenos$ = new BehaviorSubject<any[]>([]);
 
+  // NOTIFICADOR DE AUTO-GUARDADO DE SESIÓN COMPLETADA
+  public sesionCompletadaAuto$ = new Subject<boolean>();
+
   // RIESGO DINÁMICO REACTIVO
   public porcentajeRiesgoActual$ = new BehaviorSubject<number>(0);
-  private ultimaNotificacionAlcanzada60: boolean = false;
 
   // ESTADO DE PAUSA ACTIVA Y TIEMPO RESTANTE EN SEGUNDOS
   public pausaEnCurso$ = new BehaviorSubject<boolean>(false);
@@ -23,9 +25,15 @@ export class VitalCampusService {
 
   public toastNotificacion$ = new BehaviorSubject<any | null>(null);
 
+  // ESTADO GLOBAL DEL CRONÓMETRO DE ESTUDIO
   public pomodoroActivo: boolean = false;
   public pomodoroSegundosRestantes: number = 25 * 60;
   public pomodoroMinutosConfig: number = 25;
+  public pomodoroSegundosTranscurridosTotal: number = 0;
+  public pomodoroAsignatura: string = '';
+  public pomodoroObjetivo: string = 'Taller / Guía';
+  public pomodoroModoInvestigacionLibre: boolean = true;
+  
   public distraccionesConteo: number = 0;
   private timerInterval: any = null;
   private timerPausaInterval: any = null;
@@ -83,7 +91,7 @@ export class VitalCampusService {
     const rawSesiones = localStorage.getItem(key('sesiones'));
     this.sesionesEstudio$.next(rawSesiones ? JSON.parse(rawSesiones) : []);
 
-    this.actualizarRiesgoBasePorEntregas();
+    this.actualizarRiesgoBasePorEntregas(false);
     this.verificarEntregasCercanas();
     this.verificarCalidadSueno();
   }
@@ -97,8 +105,30 @@ export class VitalCampusService {
     }
   }
 
-  public actualizarRiesgoBasePorEntregas(): void {
+  public actualizarRiesgoBasePorEntregas(mostrarToastSiLiberado: boolean = true): void {
     const estresCalc = this.obtenerNivelEstresCalculado();
+
+    if (estresCalc.urgentes === 0 || estresCalc.porcentaje < 60) {
+      if (this.timerPausaInterval) {
+        clearInterval(this.timerPausaInterval);
+        this.timerPausaInterval = null;
+      }
+      this.pausaEnCurso$.next(false);
+      this.segundosRestantesPausa$.next(0);
+
+      this.porcentajeRiesgoActual$.next(estresCalc.porcentaje);
+
+      if (mostrarToastSiLiberado && estresCalc.urgentes === 0) {
+        this.mostrarToastGlobal(
+          '✅ Carga Académica Liberada',
+          'Se han eliminado o completado las entregas. El nivel de riesgo ha vuelto al 0%.',
+          'INFO',
+          false
+        );
+      }
+      return;
+    }
+
     this.porcentajeRiesgoActual$.next(estresCalc.porcentaje);
   }
 
@@ -163,6 +193,7 @@ export class VitalCampusService {
   }
 
   public cerrarSesionApp(): void {
+    this.pausarPomodoro();
     localStorage.removeItem('vc_usuario_actual');
     this.usuarioActualSubject$.next(null);
     this.alertasSubject$.next([]);
@@ -222,7 +253,6 @@ export class VitalCampusService {
     this.toastNotificacion$.next(null);
   }
 
-  // REPRODUCIR SONIDO DE ALARMA MEDIANTE WEB AUDIO API
   public reproducirAlarmaAcustica(frecuencia: number = 880, tipoBip: number = 2): void {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -250,41 +280,25 @@ export class VitalCampusService {
     }
   }
 
-  public incrementarRiesgoPorEstudio(incrementoPorcentaje: number = 2): void {
-    // Si se está en pausa activa no sube el riesgo
-    if (this.pausaEnCurso$.getValue()) return;
+  public incrementarRiesgoPorEstudio(incrementoPorcentaje: number = 1): void {}
 
-    const actual = this.porcentajeRiesgoActual$.getValue();
-    const nuevoRiesgo = Math.min(100, actual + incrementoPorcentaje);
-    this.porcentajeRiesgoActual$.next(nuevoRiesgo);
-
-    if (nuevoRiesgo >= 60 && !this.ultimaNotificacionAlcanzada60) {
-      this.ultimaNotificacionAlcanzada60 = true;
-      this.mostrarToastGlobal(
-        'Pausa Activa Recomendada',
-        'Tu nivel de carga y fatiga académica alcanzó el 60%. ¡Tómate un descanso de 15 minutos!',
-        'ADVERTENCIA',
-        true,
-        `pausa-riesgo-60-${Date.now()}`,
-        '☕'
-      );
-    }
-  }
-
-  // INICIAR PAUSA ACTIVA DE 15 MINUTOS CON CONTEO Y ALARMAS
   public iniciarPausaActiva15Min(): void {
+    if (this.pomodoroActivo) {
+      this.pausarPomodoro();
+    }
+
     if (this.timerPausaInterval) clearInterval(this.timerPausaInterval);
 
-    let segundosTotales = 15 * 60; // 15 minutos (900 seg)
-    let reduccionTotalRequerida = 30; // -30%
-    const reduccionPorSegundo = reduccionTotalRequerida / segundosTotales;
+    let segundosTotales = 15 * 60;
+    const riesgoInicial = this.porcentajeRiesgoActual$.getValue();
+    const reduccionPorSegundo = riesgoInicial > 0 ? riesgoInicial / segundosTotales : 0;
 
     this.pausaEnCurso$.next(true);
     this.segundosRestantesPausa$.next(segundosTotales);
 
     this.mostrarToastGlobal(
       '🛋️ ¡Descansa!', 
-      'Pausa activa en curso. Tómate 15 minutos para despejar tu mente.', 
+      'Pausa activa voluntaria en curso. Tómate 15 minutos para despejar tu mente.', 
       'INFO', 
       false
     );
@@ -293,18 +307,12 @@ export class VitalCampusService {
       segundosTotales--;
       this.segundosRestantesPausa$.next(segundosTotales);
 
-      // Reducción progresiva de la barra de riesgo
       const actual = this.porcentajeRiesgoActual$.getValue();
       if (actual > 0) {
         const nuevoRiesgo = Math.max(0, Math.round((actual - reduccionPorSegundo) * 100) / 100);
         this.porcentajeRiesgoActual$.next(nuevoRiesgo);
-
-        if (nuevoRiesgo < 60) {
-          this.ultimaNotificacionAlcanzada60 = false;
-        }
       }
 
-      // ALARMA A LOS 5 MINUTOS FALTANTES (Restan 300 segundos = Minuto 10 transcurrido)
       if (segundosTotales === 300) {
         this.reproducirAlarmaAcustica(660, 2);
         this.mostrarToastGlobal(
@@ -315,17 +323,18 @@ export class VitalCampusService {
         );
       }
 
-      // ALARMA DE FINALIZACIÓN (Llega a 0)
       if (segundosTotales <= 0) {
         clearInterval(this.timerPausaInterval);
         this.timerPausaInterval = null;
         this.pausaEnCurso$.next(false);
         this.segundosRestantesPausa$.next(0);
 
+        this.actualizarRiesgoBasePorEntregas(false);
+
         this.reproducirAlarmaAcustica(988, 3);
         this.mostrarToastGlobal(
           '🎉 ¡Pausa Finalizada!',
-          'Tus 15 minutos de descanso han terminado. ¡Tu nivel de riesgo ha bajado!',
+          'Tus 15 minutos de descanso han terminado. ¡Puedes retomar tus actividades!',
           'INFO',
           false
         );
@@ -388,7 +397,7 @@ export class VitalCampusService {
       }
     });
 
-    this.actualizarRiesgoBasePorEntregas();
+    this.actualizarRiesgoBasePorEntregas(false);
   }
 
   public verificarCalidadSueno(): void {
@@ -455,7 +464,7 @@ export class VitalCampusService {
       this.eliminarAlertaPorId(idAlerta);
     }
 
-    this.actualizarRiesgoBasePorEntregas();
+    this.actualizarRiesgoBasePorEntregas(true);
     return of(true);
   }
 
@@ -467,7 +476,7 @@ export class VitalCampusService {
     const idAlerta = `entrega-cercana-${id}`;
     this.eliminarAlertaPorId(idAlerta);
 
-    this.actualizarRiesgoBasePorEntregas();
+    this.actualizarRiesgoBasePorEntregas(true);
     return of(true);
   }
 
@@ -504,8 +513,9 @@ export class VitalCampusService {
   }
 
   public iniciarPomodoro(minutos: number): void {
+    if (this.pausaEnCurso$.getValue()) return;
+
     this.pomodoroMinutosConfig = minutos;
-    this.pomodoroSegundosRestantes = minutos * 60;
     this.pomodoroActivo = true;
 
     if (this.timerInterval) clearInterval(this.timerInterval);
@@ -513,10 +523,11 @@ export class VitalCampusService {
     this.timerInterval = setInterval(() => {
       if (this.pomodoroSegundosRestantes > 0) {
         this.pomodoroSegundosRestantes--;
-        // Incremento leve progresivo de fatiga mientras estudia
-        this.incrementarRiesgoPorEstudio(0.05);
+        this.pomodoroSegundosTranscurridosTotal++; // AUMENTA ÚNICAMENTE 1 SEGUNDO REAL POR CADA TIC DEL RELOJ
       } else {
         this.pausarPomodoro();
+        this.reproducirAlarmaAcustica(880, 3);
+        this.sesionCompletadaAuto$.next(true);
       }
     }, 1000);
   }
@@ -529,12 +540,14 @@ export class VitalCampusService {
     }
   }
 
+  // LA PENALIZACIÓN AÑADE TIEMPO EN PANTALLA, PERO NO SUMA SEGUNDOS FANTASMA A LOS SEGUNDOS TRANSCURRIDOS
   public registrarDistraccion(): void {
     this.distraccionesConteo++;
-    this.pomodoroSegundosRestantes += 120;
+    this.pomodoroSegundosRestantes += 120; // Extiende 2 minutos el tiempo que te falta estudiar en pantalla
+
     this.mostrarToastGlobal(
-      'Distracción Detectada',
-      'Cambiaste de pestaña en modo estricto (+2 min añadidos).',
+      '⚠️ Distracción Detectada (+2 min)',
+      'Cambiaste de pestaña en Modo Estricto. Se agregaron +2 minutos al temporizador.',
       'ADVERTENCIA',
       true,
       `distraccion-${Date.now()}`,
@@ -549,10 +562,6 @@ export class VitalCampusService {
     
     this.sesionesEstudio$.next(actualizadas);
     this.guardarEnStorage('sesiones', actualizadas);
-    
-    // Al registrar una sesión de estudio se incrementa proporcionalmente la carga
-    const minutos = Number(payload.duracionMinutos || 0);
-    this.incrementarRiesgoPorEstudio(Math.min(15, Math.round(minutos / 5)));
 
     return of(nueva);
   }
@@ -564,30 +573,49 @@ export class VitalCampusService {
     return of(true);
   }
 
-  // CÁLCULO RIGUROSO Y CORREGIDO DEL ESTRÉS (0/5 SI NO HAY TAREAS URGENTES)
-  public obtenerNivelEstresCalculado(): { porcentaje: number; sobrecargado: boolean; urgentes: number } {
+  public obtenerNivelEstresCalculado(): { porcentaje: number; sobrecargado: boolean; urgentes: number; nivelMaximo: number } {
     const entregas = this.entregas$.getValue() || [];
-    const ahora = new Date().getTime();
-
     const entregasPendientes = entregas.filter(e => e.estado !== 'COMPLETADA');
 
     if (entregasPendientes.length === 0) {
-      return { porcentaje: 0, sobrecargado: false, urgentes: 0 };
+      return { porcentaje: 0, sobrecargado: false, urgentes: 0, nivelMaximo: 0 };
     }
 
-    const entregasUrgentes = entregasPendientes.filter(e => {
-      if (!e.fechaLimite) return false;
-      const limite = new Date(`${e.fechaLimite}T${e.horaLimite || '23:59'}:00`).getTime();
-      const diffHoras = (limite - ahora) / (1000 * 60 * 60);
-      return diffHoras <= 36;
+    const ahora = new Date().getTime();
+    let maxEstresPonderado = 0;
+
+    entregasPendientes.forEach(e => {
+      const estresBase = Number(e.estresPercibido || e.estresBase || 3);
+      let factorTiempo = 0.2;
+
+      if (e.fechaLimite) {
+        const limite = new Date(`${e.fechaLimite}T${e.horaLimite || '23:59'}:00`).getTime();
+        const diffHoras = (limite - ahora) / (1000 * 60 * 60);
+
+        if (diffHoras <= 36) {
+          factorTiempo = 1.0;
+        } else if (diffHoras <= 120) {
+          factorTiempo = 0.5;
+        } else {
+          factorTiempo = 0.2;
+        }
+      }
+
+      const estresPonderado = estresBase * factorTiempo;
+      if (estresPonderado > maxEstresPonderado) {
+        maxEstresPonderado = estresPonderado;
+      }
     });
 
-    if (entregasUrgentes.length === 0) {
-      return { porcentaje: 0, sobrecargado: false, urgentes: 0 };
-    }
+    const nivelMaximoFinal = Math.max(1, Math.round(maxEstresPonderado));
+    const porcentajeBase = Math.min(100, Math.round((nivelMaximoFinal / 5) * 100));
 
-    const porcentajeBase = Math.min(100, entregasUrgentes.length * 40);
-    return { porcentaje: porcentajeBase, sobrecargado: porcentajeBase >= 50, urgentes: entregasUrgentes.length };
+    return { 
+      porcentaje: porcentajeBase, 
+      sobrecargado: porcentajeBase >= 60, 
+      urgentes: entregasPendientes.length,
+      nivelMaximo: nivelMaximoFinal 
+    };
   }
 
   public limpiarTodasLasAlertas(): void {
@@ -606,6 +634,7 @@ export class VitalCampusService {
     else if (asigs.length === 1) nivelCargaTexto = 'Baja';
 
     let suenoAnocheTexto = '0h';
+    let tituloSuenoLabel = '🌙 Sueño de Anoche';
     let promedioSuenoTexto = '0h';
 
     if (suenos.length > 0) {
@@ -623,9 +652,22 @@ export class VitalCampusService {
       const fechasOrdenadas = Object.keys(mapaFechas).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
 
       if (fechasOrdenadas.length > 0) {
+        const hoyObj = new Date();
+        const year = hoyObj.getFullYear();
+        const month = String(hoyObj.getMonth() + 1).padStart(2, '0');
+        const day = String(hoyObj.getDate()).padStart(2, '0');
+        const fechaHoyStr = `${year}-${month}-${day}`;
+
         const fechaMasReciente = fechasOrdenadas[0];
         const totalReciente = Math.round(mapaFechas[fechaMasReciente] * 10) / 10;
-        suenoAnocheTexto = `${totalReciente}h`;
+
+        if (fechaMasReciente === fechaHoyStr) {
+          suenoAnocheTexto = `${totalReciente}h`;
+          tituloSuenoLabel = '🌙 Sueño de Anoche';
+        } else {
+          suenoAnocheTexto = `${totalReciente}h`;
+          tituloSuenoLabel = `🌙 Último Registro (${fechaMasReciente})`;
+        }
 
         const sumaTotal = Object.values(mapaFechas).reduce((acc, h) => acc + h, 0);
         const promedio = Math.round((sumaTotal / fechasOrdenadas.length) * 10) / 10;
@@ -635,17 +677,16 @@ export class VitalCampusService {
 
     const estresCalc = this.obtenerNivelEstresCalculado();
 
-    let estresNivel = '0/5';
+    let estresNivel = `${estresCalc.nivelMaximo}/5`;
     let nivelEstres = 'Sin Riesgo';
 
-    if (estresCalc.porcentaje >= 70) {
-      estresNivel = '4/5';
+    if (estresCalc.nivelMaximo >= 5) {
+      nivelEstres = 'Crítico';
+    } else if (estresCalc.nivelMaximo >= 4) {
       nivelEstres = 'Alto';
-    } else if (estresCalc.porcentaje >= 35) {
-      estresNivel = '2/5';
+    } else if (estresCalc.nivelMaximo >= 3) {
       nivelEstres = 'Moderado';
-    } else if (estresCalc.porcentaje > 0) {
-      estresNivel = '1/5';
+    } else if (estresCalc.nivelMaximo >= 1) {
       nivelEstres = 'Bajo';
     } else {
       estresNivel = '0/5';
@@ -654,6 +695,7 @@ export class VitalCampusService {
 
     return of({
       suenoAnoche: suenoAnocheTexto,
+      tituloSueno: tituloSuenoLabel,
       promedioSueno: promedioSuenoTexto,
       cargaAcademica: `${cargaPorcentaje}%`,
       nivelCarga: nivelCargaTexto,

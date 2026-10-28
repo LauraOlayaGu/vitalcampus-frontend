@@ -41,7 +41,6 @@ export class EntregasComponent implements OnInit {
     this.vitalCampusService.entregas$.subscribe(entregas => {
       const ahora = new Date().getTime();
 
-      // FILTRAR PARA MOSTRAR ÚNICAMENTE LAS ENTREGAS PENDIENTES (SE BORRAN LAS COMPLETADAS)
       this.entregasPendientesList = (entregas || [])
         .filter(e => e.estado !== 'COMPLETADA')
         .map(e => {
@@ -107,14 +106,17 @@ export class EntregasComponent implements OnInit {
     });
   }
 
-  // MARCAR COMO HECHA (ELIMINA LA TARJETA DE PANTALLA Y BAJA EL RIESGO)
   marcarComoHecha(id: any): void {
-    this.vitalCampusService.cambiarEstadoEntrega(id, 'COMPLETADA').subscribe();
+    this.vitalCampusService.cambiarEstadoEntrega(id, 'COMPLETADA').subscribe(() => {
+      this.vitalCampusService.actualizarRiesgoBasePorEntregas();
+    });
   }
 
   eliminarActividad(id: any): void {
     if (confirm('¿Deseas eliminar esta entrega programada?')) {
-      this.vitalCampusService.deleteEntrega(id).subscribe();
+      this.vitalCampusService.deleteEntrega(id).subscribe(() => {
+        this.vitalCampusService.actualizarRiesgoBasePorEntregas();
+      });
     }
   }
 }

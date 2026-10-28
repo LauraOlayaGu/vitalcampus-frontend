@@ -82,7 +82,7 @@
   <!-- TARJETAS KPIS -->
   <div class="kpi-grid">
     <div class="card kpi-card">
-      <span class="kpi-title">🌙 Sueño de Anoche</span>
+      <span class="kpi-title">{{ dashboardData?.tituloSueno || '🌙 Sueño de Anoche' }}</span>
       <div class="kpi-value">{{ dashboardData?.suenoAnoche || '0h' }}</div>
       <small class="kpi-sub">Promedio semanal: {{ dashboardData?.promedioSueno || '0h' }}</small>
     </div>
